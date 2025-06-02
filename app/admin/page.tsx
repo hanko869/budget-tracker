@@ -84,13 +84,13 @@ export default function AdminPanel() {
           date: new Date().toISOString().split('T')[0]
         })
         setShowAddForm(false)
-        alert('Expenditure added successfully!')
+        alert('✅ Expenditure added successfully to database!')
       } else {
-        alert('Error adding expenditure. Please check your database connection.')
+        alert('❌ Error: Could not save to database. Please check if environment variables are set in Vercel.')
       }
     } catch (error) {
       console.error('Error adding expenditure:', error)
-      alert('Error adding expenditure. Database may not be connected.')
+      alert('❌ Database Error: ' + (error instanceof Error ? error.message : 'Unknown error') + '\n\nPlease check if Supabase environment variables are configured in Vercel.')
     } finally {
       setLoading(false)
     }
@@ -556,7 +556,10 @@ export default function AdminPanel() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-yellow-800">
-                <strong>Database Connection:</strong> {expenditures.length > 0 ? 'Connected to Supabase! 🎉' : 'Add Supabase environment variables in Vercel to enable database features.'}
+                <strong>Database Status:</strong> {expenditures.length > 0 ? 'Connected to Supabase! 🎉' : 'Add Supabase environment variables in Vercel to enable database features.'}
+              </p>
+              <p className="text-xs text-yellow-600 mt-1">
+                Current status: {expenditures.length > 0 ? `${expenditures.length} expenditures found in database` : 'Using fallback mode - no database connection'}
               </p>
             </div>
           </div>
