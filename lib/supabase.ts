@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-// Create Supabase client only if credentials are provided and we're in the browser
-export const supabase = typeof window !== 'undefined' && supabaseUrl && supabaseAnonKey 
+// Create Supabase client only if credentials are provided and valid
+export const supabase = (typeof window !== 'undefined' && supabaseUrl && supabaseAnonKey && supabaseUrl.includes('supabase')) 
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
 
@@ -42,32 +42,15 @@ export const teams: Team[] = [
   { id: '4', name: '沉浮', budget: 5600, color: '#ef4444' },
 ]
 
-// Database operations
+// Database operations - all localStorage based for deployment
 export const dbOperations = {
   // Get all expenditures
   async getExpenditures(): Promise<Expenditure[]> {
-    // Always use localStorage for now since Supabase is working but we want to ensure compatibility
     try {
       if (typeof window === 'undefined') return []
       
       const stored = localStorage.getItem('expenditures')
-      const expenditures = stored ? JSON.parse(stored) : []
-      
-      // If we have Supabase and no local data, try to fetch from Supabase
-      if (supabase && expenditures.length === 0) {
-        const { data, error } = await supabase
-          .from('expenditures')
-          .select('*')
-          .order('created_at', { ascending: false })
-
-        if (!error && data) {
-          // Save to localStorage for future use
-          localStorage.setItem('expenditures', JSON.stringify(data))
-          return data
-        }
-      }
-      
-      return expenditures
+      return stored ? JSON.parse(stored) : []
     } catch (error) {
       console.error('Error fetching expenditures:', error)
       return []
@@ -83,24 +66,11 @@ export const dbOperations = {
         created_at: new Date().toISOString()
       }
 
-      // Save to localStorage first
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('expenditures')
         const expenditures = stored ? JSON.parse(stored) : []
         expenditures.push(newExpenditure)
         localStorage.setItem('expenditures', JSON.stringify(expenditures))
-      }
-
-      // Also save to Supabase if available
-      if (supabase) {
-        const { error } = await supabase
-          .from('expenditures')
-          .insert([newExpenditure])
-
-        if (error) {
-          console.error('Error saving to Supabase:', error)
-          // Continue anyway since localStorage worked
-        }
       }
 
       return newExpenditure
@@ -115,7 +85,6 @@ export const dbOperations = {
     try {
       if (typeof window === 'undefined') return null
 
-      // Update localStorage
       const stored = localStorage.getItem('expenditures')
       const expenditures = stored ? JSON.parse(stored) : []
       const index = expenditures.findIndex((exp: Expenditure) => exp.id === id)
@@ -123,19 +92,6 @@ export const dbOperations = {
       if (index !== -1) {
         expenditures[index] = { ...expenditures[index], ...updates }
         localStorage.setItem('expenditures', JSON.stringify(expenditures))
-
-        // Also update Supabase if available
-        if (supabase) {
-          const { error } = await supabase
-            .from('expenditures')
-            .update(updates)
-            .eq('id', id)
-
-          if (error) {
-            console.error('Error updating in Supabase:', error)
-          }
-        }
-
         return expenditures[index]
       }
       return null
@@ -150,23 +106,10 @@ export const dbOperations = {
     try {
       if (typeof window === 'undefined') return false
 
-      // Delete from localStorage
       const stored = localStorage.getItem('expenditures')
       const expenditures = stored ? JSON.parse(stored) : []
       const filtered = expenditures.filter((exp: Expenditure) => exp.id !== id)
       localStorage.setItem('expenditures', JSON.stringify(filtered))
-
-      // Also delete from Supabase if available
-      if (supabase) {
-        const { error } = await supabase
-          .from('expenditures')
-          .delete()
-          .eq('id', id)
-
-        if (error) {
-          console.error('Error deleting from Supabase:', error)
-        }
-      }
 
       return true
     } catch (error) {
