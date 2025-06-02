@@ -31,10 +31,10 @@ export default function AdminPanel() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (username === 'admin' && password === 'admin123') {
+    if (username === 'admin' && password === '654321') {
       setIsAuthenticated(true)
     } else {
-      alert('Invalid credentials. Use admin/admin123')
+      alert('Invalid credentials')
     }
   }
 
@@ -199,9 +199,6 @@ export default function AdminPanel() {
             <h2 className="mt-6 text-3xl font-bold text-gray-900">Admin Login</h2>
             <p className="mt-2 text-sm text-gray-600">
               Sign in to manage budget expenditures
-            </p>
-            <p className="mt-2 text-xs text-blue-600">
-              Demo: admin / admin123
             </p>
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleLogin}>

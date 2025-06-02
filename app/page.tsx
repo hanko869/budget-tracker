@@ -88,13 +88,6 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Budget Tracker</h1>
             <p className="text-gray-600 mt-2">Monitor team spending and budget allocation</p>
           </div>
-          <a 
-            href="/admin" 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Admin Panel</span>
-          </a>
         </div>
 
         {/* Summary Cards */}
@@ -186,7 +179,10 @@ export default function Dashboard() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-blue-800">
-                <strong>Database Status:</strong> {totalSpent > 0 ? 'Connected to Supabase! 🎉' : 'Using fallback data - Add Supabase environment variables to enable database features.'}
+                <strong>Database Status:</strong> {(() => {
+                  const { isDatabaseConnected } = require('@/lib/supabase')
+                  return isDatabaseConnected() ? 'Connected to Supabase! 🎉' : 'Using fallback data - Add Supabase environment variables to enable database features.'
+                })()}
               </p>
             </div>
           </div>

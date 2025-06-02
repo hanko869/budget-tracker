@@ -1,17 +1,27 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Environment variables with fallbacks for development
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+// Safely get environment variables with validation
+const getSupabaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  return url && url.startsWith('http') ? url : null
+}
 
-// Create Supabase client if credentials are provided
+const getSupabaseKey = () => {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return key && key.length > 10 ? key : null
+}
+
+const supabaseUrl = getSupabaseUrl()
+const supabaseAnonKey = getSupabaseKey()
+
+// Create Supabase client safely
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
 
 // Check if database is connected
 export const isDatabaseConnected = () => {
-  return supabase !== null && supabaseUrl.includes('supabase.co')
+  return supabase !== null && supabaseUrl !== null
 }
 
 export interface Team {
