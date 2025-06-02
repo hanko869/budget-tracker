@@ -4,22 +4,33 @@ import { useState, useEffect } from 'react'
 import { Plus, DollarSign, TrendingUp, Users } from 'lucide-react'
 import TeamCard from '@/components/TeamCard'
 import SpendingChart from '@/components/SpendingChart'
-import { teams, dbOperations, type TeamWithExpenditures } from '@/lib/supabase'
+import { dbOperations, type TeamWithExpenditures, type Team } from '@/lib/supabase'
 
 export default function Dashboard() {
   const [teamsData, setTeamsData] = useState<TeamWithExpenditures[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadData()
+    initializeAndLoadData()
   }, [])
 
-  const loadData = async () => {
+  const initializeAndLoadData = async () => {
     try {
       setLoading(true)
-      const expenditures = await dbOperations.getExpenditures()
       
-      const teamsWithData = teams.map(team => {
+      // Initialize teams if needed
+      await dbOperations.initializeTeams()
+      
+      // Load teams and expenditures
+      const [teamsResult, expenditures] = await Promise.all([
+        dbOperations.getTeams(),
+        dbOperations.getExpenditures()
+      ])
+      
+      setTeams(teamsResult)
+      
+      const teamsWithData = teamsResult.map(team => {
         const teamExpenditures = expenditures.filter(exp => exp.team_id === team.id)
         const totalSpent = teamExpenditures.reduce((sum, exp) => sum + exp.amount, 0)
         const remaining = team.budget - totalSpent
@@ -38,7 +49,9 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error loading data:', error)
       // Fallback to static data if database fails
-      const staticTeamsData = teams.map(team => ({
+      const { defaultTeams } = await import('@/lib/supabase')
+      setTeams(defaultTeams)
+      const staticTeamsData = defaultTeams.map(team => ({
         ...team,
         expenditures: [],
         totalSpent: 0,

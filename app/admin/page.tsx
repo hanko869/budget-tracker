@@ -1,16 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Lock, Plus, Edit, Trash2, Save, X, Calculator } from 'lucide-react'
-import { teams, Expenditure, dbOperations, isDatabaseConnected } from '@/lib/supabase'
+import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings } from 'lucide-react'
+import { dbOperations, isDatabaseConnected, type Team, type Expenditure } from '@/lib/supabase'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [teams, setTeams] = useState<Team[]>([])
   const [expenditures, setExpenditures] = useState<Expenditure[]>([])
   const [editingExpenditure, setEditingExpenditure] = useState<Expenditure | null>(null)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showBudgetManagement, setShowBudgetManagement] = useState(false)
   const [loading, setLoading] = useState(false)
   const [newExpenditure, setNewExpenditure] = useState({
     team_id: '',
@@ -22,7 +25,7 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadExpenditures()
+      loadData()
     }
   }, [isAuthenticated])
 
@@ -35,14 +38,19 @@ export default function AdminPanel() {
     }
   }
 
-  const loadExpenditures = async () => {
+  const loadData = async () => {
     setLoading(true)
     try {
-      const data = await dbOperations.getExpenditures()
-      setExpenditures(data)
+      await dbOperations.initializeTeams()
+      const [teamsData, expendituresData] = await Promise.all([
+        dbOperations.getTeams(),
+        dbOperations.getExpenditures()
+      ])
+      setTeams(teamsData)
+      setExpenditures(expendituresData)
     } catch (error) {
-      console.error('Error loading expenditures:', error)
-      alert('Error loading expenditures. Database may not be connected yet.')
+      console.error('Error loading data:', error)
+      alert('Error loading data. Database may not be connected yet.')
     } finally {
       setLoading(false)
     }
@@ -75,7 +83,7 @@ export default function AdminPanel() {
       const result = await dbOperations.addExpenditure(expenditureData)
       
       if (result) {
-        await loadExpenditures() // Refresh the list
+        await loadData() // Refresh the data
         setNewExpenditure({
           team_id: '',
           unit_price: '',
@@ -120,7 +128,7 @@ export default function AdminPanel() {
       const result = await dbOperations.updateExpenditure(editingExpenditure.id, updates)
       
       if (result) {
-        await loadExpenditures()
+        await loadData()
         setEditingExpenditure(null)
         alert('Expenditure updated successfully!')
       } else {
@@ -142,7 +150,7 @@ export default function AdminPanel() {
       const success = await dbOperations.deleteExpenditure(id)
       
       if (success) {
-        await loadExpenditures()
+        await loadData()
         alert('Expenditure deleted successfully!')
       } else {
         alert('Error deleting expenditure.')
@@ -150,6 +158,29 @@ export default function AdminPanel() {
     } catch (error) {
       console.error('Error deleting expenditure:', error)
       alert('Error deleting expenditure.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateTeamBudget = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTeam) return
+
+    setLoading(true)
+    try {
+      const result = await dbOperations.updateTeamBudget(editingTeam.id, editingTeam.budget)
+      
+      if (result) {
+        await loadData()
+        setEditingTeam(null)
+        alert('✅ Team budget updated successfully!')
+      } else {
+        alert('❌ Error updating team budget.')
+      }
+    } catch (error) {
+      console.error('Error updating team budget:', error)
+      alert('❌ Database Error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -227,7 +258,7 @@ export default function AdminPanel() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-            <p className="text-gray-600 mt-2">Manage team expenditures</p>
+            <p className="text-gray-600 mt-2">Manage team expenditures and budgets</p>
           </div>
           <div className="space-x-4">
             <button
@@ -237,6 +268,14 @@ export default function AdminPanel() {
             >
               <Plus className="w-4 h-4" />
               <span>Add Expenditure</span>
+            </button>
+            <button
+              onClick={() => setShowBudgetManagement(!showBudgetManagement)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+              disabled={loading}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Manage Budgets</span>
             </button>
             <a 
               href="/" 
@@ -252,6 +291,36 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* Budget Management */}
+        {showBudgetManagement && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 className="text-lg font-semibold mb-4">Budget Management</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {teams.map(team => (
+                <div key={team.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: team.color }}
+                    ></div>
+                    <h4 className="font-medium">{team.name}</h4>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 mb-2">
+                    {team.budget.toLocaleString()}U
+                  </p>
+                  <button
+                    onClick={() => setEditingTeam(team)}
+                    disabled={loading}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                  >
+                    Edit Budget
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Add Form */}
         {showAddForm && (
@@ -449,7 +518,7 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Edit Modal */}
+        {/* Edit Expenditure Modal */}
         {editingExpenditure && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -546,6 +615,63 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* Edit Team Budget Modal */}
+        {editingTeam && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Team Budget</h3>
+              <form onSubmit={handleUpdateTeamBudget} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team</label>
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: editingTeam.color }}
+                    ></div>
+                    <span className="font-medium">{editingTeam.name}</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Budget (U)</label>
+                  <input
+                    type="number"
+                    step="100"
+                    min="0"
+                    value={editingTeam.budget}
+                    onChange={(e) => setEditingTeam({...editingTeam, budget: parseInt(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-lg font-semibold"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    This will update the monthly budget cap for <strong>{editingTeam.name}</strong> team.
+                  </p>
+                </div>
+
+                <div className="flex space-x-2">
+                  <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2" disabled={loading}>
+                    <Save className="h-4 w-4" />
+                    <span>Update Budget</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTeam(null)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
+                    disabled={loading}
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Database Status */}
         <div className={`mt-8 border rounded-lg p-4 ${isDatabaseConnected() ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
           <div className="flex items-center">
@@ -566,7 +692,7 @@ export default function AdminPanel() {
               </p>
               <p className={`text-xs mt-1 ${isDatabaseConnected() ? 'text-green-600' : 'text-yellow-600'}`}>
                 {isDatabaseConnected() 
-                  ? `Real-time database operations enabled. ${expenditures.length} expenditures in database.`
+                  ? `Real-time database operations enabled. ${expenditures.length} expenditures, ${teams.length} teams.`
                   : 'Add Supabase environment variables in Vercel to enable database features.'
                 }
               </p>

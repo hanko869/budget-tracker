@@ -40,7 +40,8 @@ export interface TeamWithExpenditures extends Team {
   percentageUsed: number
 }
 
-export const teams: Team[] = [
+// Default teams (fallback when database is not available)
+export const defaultTeams: Team[] = [
   { id: '1', name: 'Chen Long', budget: 9800, color: '#3b82f6' },
   { id: '2', name: '李行舟', budget: 8400, color: '#10b981' },
   { id: '3', name: '天意', budget: 8400, color: '#f59e0b' },
@@ -49,6 +50,113 @@ export const teams: Team[] = [
 
 // Database operations - use Supabase if available, fallback to localStorage
 export const dbOperations = {
+  // Get all teams
+  async getTeams(): Promise<Team[]> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('name')
+        
+        if (error) {
+          console.error('Supabase error fetching teams:', error)
+          return defaultTeams
+        }
+        
+        return data || defaultTeams
+      } else {
+        // Fallback to localStorage for local development
+        if (typeof window === 'undefined') return defaultTeams
+        
+        const stored = localStorage.getItem('teams')
+        return stored ? JSON.parse(stored) : defaultTeams
+      }
+    } catch (error) {
+      console.error('Error fetching teams:', error)
+      return defaultTeams
+    }
+  },
+
+  // Update team budget
+  async updateTeamBudget(teamId: string, newBudget: number): Promise<Team | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('teams')
+          .update({ budget: newBudget })
+          .eq('id', teamId)
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error updating team budget:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return null
+
+        const stored = localStorage.getItem('teams')
+        const teams = stored ? JSON.parse(stored) : defaultTeams
+        const teamIndex = teams.findIndex((team: Team) => team.id === teamId)
+        
+        if (teamIndex !== -1) {
+          teams[teamIndex].budget = newBudget
+          localStorage.setItem('teams', JSON.stringify(teams))
+          return teams[teamIndex]
+        }
+        return null
+      }
+    } catch (error) {
+      console.error('Error updating team budget:', error)
+      return null
+    }
+  },
+
+  // Initialize teams in database (call this once to populate)
+  async initializeTeams(): Promise<boolean> {
+    try {
+      if (supabase) {
+        // Check if teams already exist
+        const { data: existingTeams } = await supabase
+          .from('teams')
+          .select('id')
+          .limit(1)
+        
+        if (existingTeams && existingTeams.length > 0) {
+          return true // Teams already exist
+        }
+
+        // Insert default teams
+        const { error } = await supabase
+          .from('teams')
+          .insert(defaultTeams)
+        
+        if (error) {
+          console.error('Error initializing teams:', error)
+          return false
+        }
+        
+        return true
+      } else {
+        // Initialize in localStorage
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('teams')
+          if (!stored) {
+            localStorage.setItem('teams', JSON.stringify(defaultTeams))
+          }
+        }
+        return true
+      }
+    } catch (error) {
+      console.error('Error initializing teams:', error)
+      return false
+    }
+  },
+
   // Get all expenditures
   async getExpenditures(): Promise<Expenditure[]> {
     try {
