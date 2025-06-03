@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings } from 'lucide-react'
 import { dbOperations, isDatabaseConnected, type Team, type Expenditure } from '@/lib/supabase'
+import { getBeiJingDate } from '@/lib/timezone'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -20,7 +21,7 @@ export default function AdminPanel() {
     unit_price: '',
     quantity: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: getBeiJingDate()
   })
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function AdminPanel() {
           unit_price: '',
           quantity: '',
           description: '',
-          date: new Date().toISOString().split('T')[0]
+          date: getBeiJingDate()
         })
         setShowAddForm(false)
         alert('✅ Expenditure added successfully to database!')
@@ -255,7 +256,7 @@ export default function AdminPanel() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-            <p className="text-gray-600 mt-2">Manage team expenditures and budgets</p>
+            <p className="text-gray-600 mt-2">Manage team expenditures and budgets (Beijing Time UTC+8)</p>
           </div>
           <div className="space-x-4">
             <button
@@ -345,7 +346,7 @@ export default function AdminPanel() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date
+                    Date (Beijing Time)
                   </label>
                   <input
                     type="date"
@@ -560,7 +561,7 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date (Beijing Time)</label>
                   <input
                     type="date"
                     value={editingExpenditure.date}

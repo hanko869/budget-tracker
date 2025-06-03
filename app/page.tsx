@@ -86,7 +86,7 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Budget Tracker</h1>
-            <p className="text-gray-600 mt-2">Monitor team spending and budget allocation</p>
+            <p className="text-gray-600 mt-2">Monitor team spending and budget allocation (Beijing Time UTC+8)</p>
           </div>
         </div>
 
