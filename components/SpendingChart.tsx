@@ -12,11 +12,10 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
   const generateChartData = () => {
     const data = []
     
-    // Get current date in Beijing time and extract year/month
+    // Simple approach: Use current date to determine month/year
     const today = new Date()
-    const beijingTime = new Date(today.getTime() + (8 * 60 * 60 * 1000) - (today.getTimezoneOffset() * 60 * 1000))
-    const currentYear = beijingTime.getFullYear()
-    const currentMonth = beijingTime.getMonth() + 1 // getMonth() returns 0-11, we need 1-12
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth() + 1 // JavaScript months are 0-based
     
     // Get number of days in current month
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
@@ -49,14 +48,13 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
   // Get current month name for display
   const getCurrentMonthName = () => {
     const today = new Date()
-    const beijingTime = new Date(today.getTime() + (8 * 60 * 60 * 1000) - (today.getTimezoneOffset() * 60 * 1000))
-    return beijingTime.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    return today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
 
   return (
     <div className="w-full h-96">
       <div className="text-sm text-gray-600 mb-2 text-center">
-        {getCurrentMonthName()} - Beijing Time (UTC+8)
+        {getCurrentMonthName()} - Daily Spending Trends
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -73,7 +71,7 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
           />
           <Tooltip 
             formatter={(value: number, name: string) => [`${value}U`, name]}
-            labelFormatter={(label) => `June ${label}, 2025`}
+            labelFormatter={(label) => `Day ${label}`}
           />
           <Legend />
           {teamsData.map(team => (
