@@ -8,20 +8,29 @@ interface SpendingChartProps {
 }
 
 export default function SpendingChart({ teamsData }: SpendingChartProps) {
-  // Generate chart data for the last 30 days
+  // Generate chart data for the current month (Beijing time)
   const generateChartData = () => {
-    const days = 30
     const data = []
     const today = new Date()
+    
+    // Get Beijing time
+    const beijingTime = new Date(today.getTime() + (8 * 60 * 60 * 1000) - (today.getTimezoneOffset() * 60 * 1000))
+    
+    // Get current month and year in Beijing time
+    const currentMonth = beijingTime.getMonth()
+    const currentYear = beijingTime.getFullYear()
+    
+    // Get number of days in current month
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
 
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(today)
-      date.setDate(date.getDate() - i)
+    // Generate data for each day of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYear, currentMonth, day)
       const dateStr = date.toISOString().split('T')[0]
 
       const dayData: any = {
         date: dateStr,
-        day: date.getDate(),
+        day: day,
       }
 
       teamsData.forEach(team => {
@@ -38,9 +47,19 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
   }
 
   const chartData = generateChartData()
+  
+  // Get current month name for display
+  const getCurrentMonthName = () => {
+    const today = new Date()
+    const beijingTime = new Date(today.getTime() + (8 * 60 * 60 * 1000) - (today.getTimezoneOffset() * 60 * 1000))
+    return beijingTime.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
 
   return (
     <div className="w-full h-96">
+      <div className="text-sm text-gray-600 mb-2 text-center">
+        {getCurrentMonthName()} - Beijing Time (UTC+8)
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -48,6 +67,7 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
             dataKey="day" 
             tick={{ fontSize: 12 }}
             tickFormatter={(value) => `${value}`}
+            domain={[1, 'dataMax']}
           />
           <YAxis 
             tick={{ fontSize: 12 }}
@@ -55,7 +75,7 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
           />
           <Tooltip 
             formatter={(value: number, name: string) => [`${value}U`, name]}
-            labelFormatter={(label) => `Day ${label}`}
+            labelFormatter={(label) => `June ${label}, 2025`}
           />
           <Legend />
           {teamsData.map(team => (
@@ -67,6 +87,7 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
               strokeWidth={2}
               dot={{ r: 4 }}
               activeDot={{ r: 6 }}
+              connectNulls={false}
             />
           ))}
         </LineChart>
