@@ -8,25 +8,23 @@ interface SpendingChartProps {
 }
 
 export default function SpendingChart({ teamsData }: SpendingChartProps) {
-  // Generate chart data for the current month (Beijing time)
+  // Generate chart data for the current month
   const generateChartData = () => {
     const data = []
+    
+    // Get current date in Beijing time and extract year/month
     const today = new Date()
-    
-    // Get Beijing time
     const beijingTime = new Date(today.getTime() + (8 * 60 * 60 * 1000) - (today.getTimezoneOffset() * 60 * 1000))
-    
-    // Get current month and year in Beijing time
-    const currentMonth = beijingTime.getMonth()
     const currentYear = beijingTime.getFullYear()
+    const currentMonth = beijingTime.getMonth() + 1 // getMonth() returns 0-11, we need 1-12
     
     // Get number of days in current month
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
 
     // Generate data for each day of the current month
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day)
-      const dateStr = date.toISOString().split('T')[0]
+      // Create date string in YYYY-MM-DD format to match database storage
+      const dateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
 
       const dayData: any = {
         date: dateStr,
