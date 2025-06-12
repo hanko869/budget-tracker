@@ -23,6 +23,7 @@ export default function AdminPanel() {
     description: '',
     date: getBeiJingDate()
   })
+  const [teamFilter, setTeamFilter] = useState<string>('all')
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -444,7 +445,19 @@ export default function AdminPanel() {
 
         {/* Expenditures Table */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">Expenditures</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Expenditures</h3>
+            <select
+              value={teamFilter}
+              onChange={e => setTeamFilter(e.target.value)}
+              className="border border-gray-300 rounded px-3 py-1 text-sm"
+            >
+              <option value="all">All Teams</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -473,7 +486,9 @@ export default function AdminPanel() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {expenditures.map((expenditure) => (
+                {expenditures
+                  .filter(exp => teamFilter === 'all' || exp.team_id === teamFilter)
+                  .map((expenditure) => (
                   <tr key={expenditure.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {getTeamName(expenditure.team_id)}
