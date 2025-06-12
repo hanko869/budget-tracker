@@ -68,23 +68,20 @@ export const dbOperations = {
           .from('teams')
           .select('*')
           .order('name')
-        
         if (error) {
           console.error('Supabase error fetching teams:', error)
-          return defaultTeams
+          return []
         }
-        
-        return data || defaultTeams
+        return data || []
       } else {
-        // Fallback to localStorage for local development
-        if (typeof window === 'undefined') return defaultTeams
-        
+        // Fallback to localStorage for local development only
+        if (typeof window === 'undefined') return []
         const stored = localStorage.getItem('teams')
-        return stored ? JSON.parse(stored) : defaultTeams
+        return stored ? JSON.parse(stored) : []
       }
     } catch (error) {
       console.error('Error fetching teams:', error)
-      return defaultTeams
+      return []
     }
   },
 
