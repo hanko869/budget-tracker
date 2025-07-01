@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings } from 'lucide-react'
+import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings, BarChart3 } from 'lucide-react'
 import { dbOperations, isDatabaseConnected, type Team, type Expenditure } from '@/lib/supabase'
 import { getBeiJingDate } from '@/lib/timezone'
+import { useRouter } from 'next/navigation'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -24,12 +25,24 @@ export default function AdminPanel() {
     date: getBeiJingDate()
   })
   const [teamFilter, setTeamFilter] = useState<string>('all')
+  const router = useRouter()
 
   useEffect(() => {
     if (isAuthenticated) {
       loadData()
     }
   }, [isAuthenticated])
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Get current month name
+  const currentMonth = new Date().toLocaleDateString('en-US', { 
+    month: 'long', 
+    year: 'numeric',
+    timeZone: 'Asia/Shanghai'
+  })
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -258,6 +271,9 @@ export default function AdminPanel() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
             <p className="text-gray-600 mt-2">Manage team expenditures and budgets (Beijing Time UTC+8)</p>
+            <p className="text-sm text-blue-600 mt-1 font-medium">
+              Managing data for: {currentMonth}
+            </p>
           </div>
           <div className="space-x-4">
             <button
@@ -276,12 +292,13 @@ export default function AdminPanel() {
               <Settings className="w-4 h-4" />
               <span>Manage Budgets</span>
             </button>
-            <a 
-              href="/" 
-              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors"
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
             >
-              Back to Dashboard
-            </a>
+              <BarChart3 className="w-5 h-5" />
+              <span>View Dashboard</span>
+            </button>
             <button
               onClick={() => setIsAuthenticated(false)}
               className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"

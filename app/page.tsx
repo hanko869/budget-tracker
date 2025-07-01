@@ -67,6 +67,13 @@ export default function Dashboard() {
   const totalBudget = teams.reduce((sum, team) => sum + team.budget, 0)
   const totalSpent = teamsData.reduce((sum, team) => sum + team.totalSpent, 0)
   const totalRemaining = totalBudget - totalSpent
+  
+  // Get current month name
+  const currentMonth = new Date().toLocaleDateString('en-US', { 
+    month: 'long', 
+    year: 'numeric',
+    timeZone: 'Asia/Shanghai'
+  })
 
   if (loading) {
     return (
@@ -98,6 +105,9 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Budget Tracker</h1>
             <p className="text-gray-600 mt-2">Monitor team spending and budget allocation (Beijing Time UTC+8)</p>
+            <p className="text-sm text-blue-600 mt-1 font-medium">
+              Showing data for: {currentMonth}
+            </p>
           </div>
         </div>
 

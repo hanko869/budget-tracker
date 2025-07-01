@@ -58,6 +58,26 @@ export const defaultTeams: Team[] = [
   { id: '4', name: '沉浮', budget: 5600, color: '#ef4444' },
 ]
 
+// Helper function to get current month date range
+function getCurrentMonthDateRange() {
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  
+  // Format dates as YYYY-MM-DD for database queries
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
+  return {
+    start: formatDate(firstDay),
+    end: formatDate(lastDay)
+  }
+}
+
 // Database operations - use Supabase if available, fallback to localStorage
 export const dbOperations = {
   // Get all teams
@@ -167,10 +187,14 @@ export const dbOperations = {
   // Get all expenditures
   async getExpenditures(): Promise<Expenditure[]> {
     try {
+      const { start, end } = getCurrentMonthDateRange()
+      
       if (supabase) {
         const { data, error } = await supabase
           .from('expenditures')
           .select('*')
+          .gte('date', start)
+          .lte('date', end)
           .order('created_at', { ascending: false })
         
         if (error) {
@@ -184,7 +208,15 @@ export const dbOperations = {
         if (typeof window === 'undefined') return []
         
         const stored = localStorage.getItem('expenditures')
-        return stored ? JSON.parse(stored) : []
+        const allExpenditures = stored ? JSON.parse(stored) : []
+        
+        // Filter by current month
+        return allExpenditures.filter((exp: Expenditure) => {
+          const expDate = new Date(exp.date)
+          const now = new Date()
+          return expDate.getMonth() === now.getMonth() && 
+                 expDate.getFullYear() === now.getFullYear()
+        })
       }
     } catch (error) {
       console.error('Error fetching expenditures:', error)
