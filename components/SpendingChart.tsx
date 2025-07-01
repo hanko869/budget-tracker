@@ -5,25 +5,28 @@ import { TeamWithExpenditures } from '@/lib/supabase'
 
 interface SpendingChartProps {
   teamsData: TeamWithExpenditures[]
+  selectedYear?: number
+  selectedMonth?: number
 }
 
-export default function SpendingChart({ teamsData }: SpendingChartProps) {
-  // Generate chart data for the current month
+export default function SpendingChart({ teamsData, selectedYear, selectedMonth }: SpendingChartProps) {
+  // Generate chart data for the selected month
   const generateChartData = () => {
     const data = []
     
-    // Simple approach: Use current date to determine month/year
+    // Use provided year/month or default to current
     const today = new Date()
-    const currentYear = today.getFullYear()
-    const currentMonth = today.getMonth() + 1 // JavaScript months are 0-based
+    const year = selectedYear ?? today.getFullYear()
+    const month = selectedMonth ?? today.getMonth()
+    const monthForCalc = month + 1 // JavaScript months are 0-based, but we need 1-based for calculations
     
-    // Get number of days in current month
-    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+    // Get number of days in selected month
+    const daysInMonth = new Date(year, monthForCalc, 0).getDate()
 
-    // Generate data for each day of the current month
+    // Generate data for each day of the selected month
     for (let day = 1; day <= daysInMonth; day++) {
       // Create date string in YYYY-MM-DD format to match database storage
-      const dateStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+      const dateStr = `${year}-${monthForCalc.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
 
       const dayData: any = {
         date: dateStr,
@@ -45,16 +48,18 @@ export default function SpendingChart({ teamsData }: SpendingChartProps) {
 
   const chartData = generateChartData()
   
-  // Get current month name for display
-  const getCurrentMonthName = () => {
-    const today = new Date()
-    return today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  // Get selected month name for display
+  const getMonthName = () => {
+    const year = selectedYear ?? new Date().getFullYear()
+    const month = selectedMonth ?? new Date().getMonth()
+    const date = new Date(year, month)
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
 
   return (
     <div className="w-full h-96">
       <div className="text-sm text-gray-600 mb-2 text-center">
-        {getCurrentMonthName()} - Daily Spending Trends
+        {getMonthName()} - Daily Spending Trends
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>

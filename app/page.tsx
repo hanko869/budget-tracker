@@ -171,7 +171,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Daily Spending Trends</h3>
-            <SpendingChart teamsData={teamsData} />
+            <SpendingChart teamsData={teamsData} selectedYear={selectedYear} selectedMonth={selectedMonth} />
           </div>
           
           <div className="bg-white rounded-lg shadow p-6">
