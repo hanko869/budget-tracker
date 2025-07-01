@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings, BarChart3 } from 'lucide-react'
+import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings, BarChart3, Users } from 'lucide-react'
 import { dbOperations, isDatabaseConnected, type Team, type Expenditure } from '@/lib/supabase'
 import { getBeiJingDate } from '@/lib/timezone'
 import { useRouter } from 'next/navigation'
+import MonthSelector from '@/components/MonthSelector'
+import TeamManagement from '@/components/TeamManagement'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -16,29 +18,49 @@ export default function AdminPanel() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBudgetManagement, setShowBudgetManagement] = useState(false)
+  const [showTeamManagement, setShowTeamManagement] = useState(false)
   const [loading, setLoading] = useState(false)
   const [newExpenditure, setNewExpenditure] = useState({
     team_id: '',
-    unit_price: '',
-    quantity: '',
+    amount: 0,
+    unit_price: 0,
+    quantity: 1,
     description: '',
     date: getBeiJingDate()
   })
   const [teamFilter, setTeamFilter] = useState<string>('all')
   const router = useRouter()
+  
+  // Month selection state
+  const now = new Date()
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
 
   useEffect(() => {
     if (isAuthenticated) {
       loadData()
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, selectedYear, selectedMonth])
 
   useEffect(() => {
-    loadData()
-  }, [])
+    // Update date when month changes to ensure new expenditures are in the right month
+    if (selectedYear === now.getFullYear() && selectedMonth === now.getMonth()) {
+      setNewExpenditure(prev => ({ ...prev, date: getBeiJingDate() }))
+    } else {
+      // Set to first day of selected month
+      const firstDay = new Date(selectedYear, selectedMonth, 1)
+      const dateStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-01`
+      setNewExpenditure(prev => ({ ...prev, date: dateStr }))
+    }
+  }, [selectedYear, selectedMonth])
 
-  // Get current month name
-  const currentMonth = new Date().toLocaleDateString('en-US', { 
+  const handleMonthChange = (year: number, month: number) => {
+    setSelectedYear(year)
+    setSelectedMonth(month)
+  }
+
+  // Get selected month name
+  const selectedMonthName = new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { 
     month: 'long', 
     year: 'numeric',
     timeZone: 'Asia/Shanghai'
@@ -59,7 +81,7 @@ export default function AdminPanel() {
       await dbOperations.initializeTeams()
       const [teamsData, expendituresData] = await Promise.all([
         dbOperations.getTeams(),
-        dbOperations.getExpenditures()
+        dbOperations.getExpenditures(selectedYear, selectedMonth)
       ])
       setTeams(teamsData)
       setExpenditures(expendituresData)
@@ -71,10 +93,8 @@ export default function AdminPanel() {
     }
   }
 
-  const calculateTotal = (unitPrice: string, quantity: string) => {
-    const price = parseFloat(unitPrice) || 0
-    const qty = parseInt(quantity) || 0
-    return price * qty
+  const calculateTotal = (unitPrice: number, quantity: number) => {
+    return unitPrice * quantity
   }
 
   const handleAddExpenditure = async (e: React.FormEvent) => {
@@ -82,15 +102,13 @@ export default function AdminPanel() {
     setLoading(true)
 
     try {
-      const unitPrice = parseFloat(newExpenditure.unit_price)
-      const quantity = parseInt(newExpenditure.quantity)
-      const totalAmount = unitPrice * quantity
+      const totalAmount = newExpenditure.unit_price * newExpenditure.quantity
 
       const expenditureData = {
         team_id: newExpenditure.team_id,
         amount: totalAmount,
-        unit_price: unitPrice,
-        quantity: quantity,
+        unit_price: newExpenditure.unit_price,
+        quantity: newExpenditure.quantity,
         description: newExpenditure.description,
         date: newExpenditure.date,
       }
@@ -101,8 +119,9 @@ export default function AdminPanel() {
         await loadData() // Refresh the data
         setNewExpenditure({
           team_id: '',
-          unit_price: '',
-          quantity: '',
+          amount: 0,
+          unit_price: 0,
+          quantity: 1,
           description: '',
           date: getBeiJingDate()
         })
@@ -272,10 +291,15 @@ export default function AdminPanel() {
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
             <p className="text-gray-600 mt-2">Manage team expenditures and budgets (Beijing Time UTC+8)</p>
             <p className="text-sm text-blue-600 mt-1 font-medium">
-              Managing data for: {currentMonth}
+              Managing data for: {selectedMonthName}
             </p>
           </div>
           <div className="space-x-4">
+            <MonthSelector 
+              currentMonth={selectedMonth}
+              currentYear={selectedYear}
+              onMonthChange={handleMonthChange}
+            />
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -293,6 +317,14 @@ export default function AdminPanel() {
               <span>Manage Budgets</span>
             </button>
             <button
+              onClick={() => setShowTeamManagement(!showTeamManagement)}
+              className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+              disabled={loading}
+            >
+              <Users className="w-4 h-4" />
+              <span>Manage Teams</span>
+            </button>
+            <button
               onClick={() => router.push('/')}
               className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors"
             >
@@ -307,6 +339,13 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* Team Management Section */}
+        {showTeamManagement && (
+          <div className="mb-8">
+            <TeamManagement teams={teams} onTeamsUpdate={loadData} />
+          </div>
+        )}
 
         {/* Budget Management */}
         {showBudgetManagement && (
@@ -384,7 +423,7 @@ export default function AdminPanel() {
                     type="number"
                     step="0.01"
                     value={newExpenditure.unit_price}
-                    onChange={(e) => setNewExpenditure(prev => ({ ...prev, unit_price: e.target.value }))}
+                    onChange={(e) => setNewExpenditure(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
                     required
                     disabled={loading}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -398,7 +437,7 @@ export default function AdminPanel() {
                   <input
                     type="number"
                     value={newExpenditure.quantity}
-                    onChange={(e) => setNewExpenditure(prev => ({ ...prev, quantity: e.target.value }))}
+                    onChange={(e) => setNewExpenditure(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
                     required
                     disabled={loading}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"

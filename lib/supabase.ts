@@ -78,6 +78,25 @@ function getCurrentMonthDateRange() {
   }
 }
 
+// Helper function to get specific month date range
+function getMonthDateRange(year: number, month: number) {
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  
+  // Format dates as YYYY-MM-DD for database queries
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
+  return {
+    start: formatDate(firstDay),
+    end: formatDate(lastDay)
+  }
+}
+
 // Database operations - use Supabase if available, fallback to localStorage
 export const dbOperations = {
   // Get all teams
@@ -184,10 +203,12 @@ export const dbOperations = {
     }
   },
 
-  // Get all expenditures
-  async getExpenditures(): Promise<Expenditure[]> {
+  // Get all expenditures (with optional month/year filter)
+  async getExpenditures(year?: number, month?: number): Promise<Expenditure[]> {
     try {
-      const { start, end } = getCurrentMonthDateRange()
+      const { start, end } = year !== undefined && month !== undefined 
+        ? getMonthDateRange(year, month)
+        : getCurrentMonthDateRange()
       
       if (supabase) {
         const { data, error } = await supabase
@@ -210,12 +231,16 @@ export const dbOperations = {
         const stored = localStorage.getItem('expenditures')
         const allExpenditures = stored ? JSON.parse(stored) : []
         
-        // Filter by current month
+        // Filter by specified or current month
         return allExpenditures.filter((exp: Expenditure) => {
           const expDate = new Date(exp.date)
-          const now = new Date()
-          return expDate.getMonth() === now.getMonth() && 
-                 expDate.getFullYear() === now.getFullYear()
+          if (year !== undefined && month !== undefined) {
+            return expDate.getMonth() === month && expDate.getFullYear() === year
+          } else {
+            const now = new Date()
+            return expDate.getMonth() === now.getMonth() && 
+                   expDate.getFullYear() === now.getFullYear()
+          }
         })
       }
     } catch (error) {
@@ -336,6 +361,134 @@ export const dbOperations = {
       }
     } catch (error) {
       console.error('Error deleting expenditure:', error)
+      return false
+    }
+  },
+
+  // Create new team
+  async createTeam(team: Omit<Team, 'id' | 'created_at'>): Promise<Team | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('teams')
+          .insert([team])
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error creating team:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        const newTeam: Team = {
+          ...team,
+          id: Date.now().toString(),
+          created_at: new Date().toISOString()
+        }
+
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('teams')
+          const teams = stored ? JSON.parse(stored) : defaultTeams
+          teams.push(newTeam)
+          localStorage.setItem('teams', JSON.stringify(teams))
+        }
+
+        return newTeam
+      }
+    } catch (error) {
+      console.error('Error creating team:', error)
+      return null
+    }
+  },
+
+  // Update team name
+  async updateTeamName(teamId: string, newName: string): Promise<Team | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('teams')
+          .update({ name: newName })
+          .eq('id', teamId)
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error updating team name:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return null
+
+        const stored = localStorage.getItem('teams')
+        const teams = stored ? JSON.parse(stored) : defaultTeams
+        const teamIndex = teams.findIndex((team: Team) => team.id === teamId)
+        
+        if (teamIndex !== -1) {
+          teams[teamIndex].name = newName
+          localStorage.setItem('teams', JSON.stringify(teams))
+          return teams[teamIndex]
+        }
+        return null
+      }
+    } catch (error) {
+      console.error('Error updating team name:', error)
+      return null
+    }
+  },
+
+  // Delete team (and all its expenditures)
+  async deleteTeam(teamId: string): Promise<boolean> {
+    try {
+      if (supabase) {
+        // First delete all expenditures for this team
+        const { error: expError } = await supabase
+          .from('expenditures')
+          .delete()
+          .eq('team_id', teamId)
+        
+        if (expError) {
+          console.error('Error deleting team expenditures:', expError)
+          throw expError
+        }
+
+        // Then delete the team
+        const { error: teamError } = await supabase
+          .from('teams')
+          .delete()
+          .eq('id', teamId)
+        
+        if (teamError) {
+          console.error('Error deleting team:', teamError)
+          throw teamError
+        }
+        
+        return true
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return false
+
+        // Delete expenditures
+        const expStored = localStorage.getItem('expenditures')
+        const expenditures = expStored ? JSON.parse(expStored) : []
+        const filteredExp = expenditures.filter((exp: Expenditure) => exp.team_id !== teamId)
+        localStorage.setItem('expenditures', JSON.stringify(filteredExp))
+
+        // Delete team
+        const teamStored = localStorage.getItem('teams')
+        const teams = teamStored ? JSON.parse(teamStored) : []
+        const filteredTeams = teams.filter((team: Team) => team.id !== teamId)
+        localStorage.setItem('teams', JSON.stringify(filteredTeams))
+
+        return true
+      }
+    } catch (error) {
+      console.error('Error deleting team:', error)
       return false
     }
   }

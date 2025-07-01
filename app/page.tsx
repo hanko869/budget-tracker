@@ -4,16 +4,22 @@ import { useState, useEffect } from 'react'
 import { Plus, DollarSign, TrendingUp, Users } from 'lucide-react'
 import TeamCard from '@/components/TeamCard'
 import SpendingChart from '@/components/SpendingChart'
+import MonthSelector from '@/components/MonthSelector'
 import { dbOperations, type TeamWithExpenditures, type Team } from '@/lib/supabase'
 
 export default function Dashboard() {
   const [teamsData, setTeamsData] = useState<TeamWithExpenditures[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Month selection state
+  const now = new Date()
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
 
   useEffect(() => {
     initializeAndLoadData()
-  }, [])
+  }, [selectedYear, selectedMonth])
 
   const initializeAndLoadData = async () => {
     try {
@@ -22,10 +28,10 @@ export default function Dashboard() {
       // Initialize teams if needed
       await dbOperations.initializeTeams()
       
-      // Load teams and expenditures
+      // Load teams and expenditures for selected month
       const [teamsResult, expenditures] = await Promise.all([
         dbOperations.getTeams(),
-        dbOperations.getExpenditures()
+        dbOperations.getExpenditures(selectedYear, selectedMonth)
       ])
       
       setTeams(teamsResult)
@@ -64,12 +70,17 @@ export default function Dashboard() {
     }
   }
 
+  const handleMonthChange = (year: number, month: number) => {
+    setSelectedYear(year)
+    setSelectedMonth(month)
+  }
+
   const totalBudget = teams.reduce((sum, team) => sum + team.budget, 0)
   const totalSpent = teamsData.reduce((sum, team) => sum + team.totalSpent, 0)
   const totalRemaining = totalBudget - totalSpent
   
-  // Get current month name
-  const currentMonth = new Date().toLocaleDateString('en-US', { 
+  // Get selected month name
+  const selectedMonthName = new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { 
     month: 'long', 
     year: 'numeric',
     timeZone: 'Asia/Shanghai'
@@ -105,10 +116,12 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Budget Tracker</h1>
             <p className="text-gray-600 mt-2">Monitor team spending and budget allocation (Beijing Time UTC+8)</p>
-            <p className="text-sm text-blue-600 mt-1 font-medium">
-              Showing data for: {currentMonth}
-            </p>
           </div>
+          <MonthSelector 
+            currentMonth={selectedMonth}
+            currentYear={selectedYear}
+            onMonthChange={handleMonthChange}
+          />
         </div>
 
         {/* Summary Cards */}
