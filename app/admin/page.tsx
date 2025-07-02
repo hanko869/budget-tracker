@@ -88,7 +88,7 @@ export default function AdminPanel() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (username === 'admin' && password === 'admin123') {
+    if (username === 'admin' && password === '654321') {
       setIsAuthenticated(true)
     } else {
       alert('Invalid credentials')
