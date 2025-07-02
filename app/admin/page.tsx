@@ -2,26 +2,31 @@
 
 import { useState, useEffect } from 'react'
 import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings, BarChart3, Users } from 'lucide-react'
-import { dbOperations, isDatabaseConnected, type Team, type Expenditure } from '@/lib/supabase'
+import { dbOperations, isDatabaseConnected, type Team, type Expenditure, type Member } from '@/lib/supabase'
 import { getBeiJingDate } from '@/lib/timezone'
 import { useRouter } from 'next/navigation'
 import MonthSelector from '@/components/MonthSelector'
 import TeamManagement from '@/components/TeamManagement'
+import MemberManagement from '@/components/MemberManagement'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [teams, setTeams] = useState<Team[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [expenditures, setExpenditures] = useState<Expenditure[]>([])
   const [editingExpenditure, setEditingExpenditure] = useState<Expenditure | null>(null)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showBudgetManagement, setShowBudgetManagement] = useState(false)
   const [showTeamManagement, setShowTeamManagement] = useState(false)
+  const [showMemberManagement, setShowMemberManagement] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('')
   const [newExpenditure, setNewExpenditure] = useState<{
     team_id: string;
+    member_id: string;
     amount: number;
     unit_price: number | '';
     quantity: number | '';
@@ -29,6 +34,7 @@ export default function AdminPanel() {
     date: string;
   }>({
     team_id: '',
+    member_id: '',
     amount: 0,
     unit_price: '',
     quantity: '',
@@ -48,6 +54,13 @@ export default function AdminPanel() {
       loadData()
     }
   }, [isAuthenticated, selectedYear, selectedMonth])
+
+  useEffect(() => {
+    // Load members when team is selected
+    if (newExpenditure.team_id) {
+      loadTeamMembers(newExpenditure.team_id)
+    }
+  }, [newExpenditure.team_id])
 
   useEffect(() => {
     // Update date when month changes to ensure new expenditures are in the right month
@@ -75,7 +88,7 @@ export default function AdminPanel() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (username === 'admin' && password === '654321') {
+    if (username === 'admin' && password === 'admin123') {
       setIsAuthenticated(true)
     } else {
       alert('Invalid credentials')
@@ -86,18 +99,27 @@ export default function AdminPanel() {
     setLoading(true)
     try {
       await dbOperations.initializeTeams()
-      const [teamsData, expendituresData] = await Promise.all([
+      const [teamsData, expendituresData, allMembers] = await Promise.all([
         dbOperations.getTeams(),
-        dbOperations.getExpenditures(selectedYear, selectedMonth)
+        dbOperations.getExpenditures(selectedYear, selectedMonth),
+        dbOperations.getTeamMembers()
       ])
       setTeams(teamsData)
       setExpenditures(expendituresData)
+      setMembers(allMembers)
     } catch (error) {
       console.error('Error loading data:', error)
       alert('Error loading data. Database may not be connected yet.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadTeamMembers = async (teamId: string) => {
+    const teamMembers = await dbOperations.getTeamMembers(teamId)
+    setMembers(teamMembers)
+    // Reset member selection when team changes
+    setSelectedMemberId('')
   }
 
   const calculateTotal = (unitPrice: number | '', quantity: number | '') => {
@@ -117,6 +139,7 @@ export default function AdminPanel() {
 
       const expenditureData = {
         team_id: newExpenditure.team_id,
+        member_id: selectedMemberId || undefined,
         amount: totalAmount,
         unit_price: unitPrice,
         quantity: quantity,
@@ -124,18 +147,20 @@ export default function AdminPanel() {
         date: newExpenditure.date,
       }
 
-      const result = await dbOperations.addExpenditure(expenditureData)
+      const result = await dbOperations.addExpenditureWithMember(expenditureData)
       
       if (result) {
         await loadData() // Refresh the data
         setNewExpenditure({
           team_id: '',
+          member_id: '',
           amount: 0,
           unit_price: '',
           quantity: '',
           description: '',
           date: getBeiJingDate()
         })
+        setSelectedMemberId('')
         setShowAddForm(false)
         alert('✅ Expenditure added successfully to database!')
       } else {
@@ -149,8 +174,10 @@ export default function AdminPanel() {
     }
   }
 
-  const handleEditExpenditure = (expenditure: Expenditure) => {
+  const handleEditExpenditure = async (expenditure: Expenditure) => {
     setEditingExpenditure(expenditure)
+    // Load members for the team of this expenditure
+    await loadTeamMembers(expenditure.team_id)
   }
 
   const handleUpdateExpenditure = async (e: React.FormEvent) => {
@@ -163,6 +190,7 @@ export default function AdminPanel() {
       
       const updates = {
         team_id: editingExpenditure.team_id,
+        member_id: editingExpenditure.member_id,
         amount: totalAmount,
         unit_price: editingExpenditure.unit_price,
         quantity: editingExpenditure.quantity,
@@ -235,6 +263,12 @@ export default function AdminPanel() {
     return teams.find(team => team.id === teamId)?.name || 'Unknown'
   }
 
+  const getMemberName = (memberId: string | undefined) => {
+    if (!memberId) return 'Unassigned'
+    const member = members.find(m => m.id === memberId)
+    return member ? member.name : 'Unknown'
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -305,7 +339,7 @@ export default function AdminPanel() {
               Managing data for: {selectedMonthName}
             </p>
           </div>
-          <div className="space-x-4">
+          <div className="space-x-4 flex">
             <MonthSelector 
               currentMonth={selectedMonth}
               currentYear={selectedYear}
@@ -320,12 +354,12 @@ export default function AdminPanel() {
               <span>Add Expenditure</span>
             </button>
             <button
-              onClick={() => setShowBudgetManagement(!showBudgetManagement)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+              onClick={() => setShowMemberManagement(!showMemberManagement)}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
               disabled={loading}
             >
-              <Settings className="w-4 h-4" />
-              <span>Manage Budgets</span>
+              <Users className="w-4 h-4" />
+              <span>Manage Members</span>
             </button>
             <button
               onClick={() => setShowTeamManagement(!showTeamManagement)}
@@ -350,6 +384,13 @@ export default function AdminPanel() {
             </button>
           </div>
         </div>
+
+        {/* Member Management Section */}
+        {showMemberManagement && (
+          <div className="mb-8">
+            <MemberManagement />
+          </div>
+        )}
 
         {/* Team Management Section */}
         {showTeamManagement && (
@@ -410,6 +451,32 @@ export default function AdminPanel() {
                       <option key={team.id} value={team.id}>{team.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Member
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {members.length === 0 && newExpenditure.team_id && (
+                      <p className="text-sm text-gray-500">No members in this team yet</p>
+                    )}
+                    {members.map(member => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => setSelectedMemberId(member.id)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                          selectedMemberId === member.id
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {member.name}
+                        {member.is_leader && ' ∞'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -533,6 +600,9 @@ export default function AdminPanel() {
                     Team
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Member
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Description
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -559,6 +629,9 @@ export default function AdminPanel() {
                   <tr key={expenditure.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {getTeamName(expenditure.team_id)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {getMemberName(expenditure.member_id)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {expenditure.description}
@@ -616,6 +689,24 @@ export default function AdminPanel() {
                     {teams.map(team => (
                       <option key={team.id} value={team.id}>{team.name}</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Member</label>
+                  <select
+                    value={editingExpenditure.member_id || ''}
+                    onChange={(e) => setEditingExpenditure({...editingExpenditure, member_id: e.target.value || undefined})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    disabled={loading}
+                  >
+                    <option value="">Unassigned</option>
+                    {members
+                      .filter(member => member.team_id === editingExpenditure.team_id)
+                      .map(member => (
+                        <option key={member.id} value={member.id}>
+                          {member.name} {member.is_leader ? '∞' : ''}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div>

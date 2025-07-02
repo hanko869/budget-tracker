@@ -1,15 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, DollarSign, TrendingUp, Users } from 'lucide-react'
+import { Plus, DollarSign, TrendingUp, Users, Infinity } from 'lucide-react'
 import TeamCard from '@/components/TeamCard'
 import SpendingChart from '@/components/SpendingChart'
 import MonthSelector from '@/components/MonthSelector'
-import { dbOperations, type TeamWithExpenditures, type Team } from '@/lib/supabase'
+import { dbOperations, type TeamWithExpenditures, type Team, type Member, type MemberWithSpending } from '@/lib/supabase'
+
+interface TeamWithMembers extends Team {
+  members: MemberWithSpending[]
+  totalBudget: number
+  totalSpent: number
+  remaining: number
+}
 
 export default function Dashboard() {
   const [teamsData, setTeamsData] = useState<TeamWithExpenditures[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [teamsWithMembers, setTeamsWithMembers] = useState<TeamWithMembers[]>([])
   const [loading, setLoading] = useState(true)
   
   // Month selection state
@@ -28,26 +36,65 @@ export default function Dashboard() {
       // Initialize teams if needed
       await dbOperations.initializeTeams()
       
-      // Load teams and expenditures for selected month
-      const [teamsResult, expenditures] = await Promise.all([
+      // Load teams, members and expenditures for selected month
+      const [teamsResult, expenditures, allMembers] = await Promise.all([
         dbOperations.getTeams(),
-        dbOperations.getExpenditures(selectedYear, selectedMonth)
+        dbOperations.getExpenditures(selectedYear, selectedMonth),
+        dbOperations.getTeamMembers()
       ])
       
       setTeams(teamsResult)
       
+      // Process teams with member data
+      const teamsWithMemberData = await Promise.all(
+        teamsResult.map(async (team) => {
+          const teamMembers = allMembers.filter(m => m.team_id === team.id)
+          
+          // Get member spending data
+          const membersWithSpending = await Promise.all(
+            teamMembers.map(async (member) => {
+              const memberExp = expenditures.filter(exp => exp.member_id === member.id)
+              const totalSpent = memberExp.reduce((sum, exp) => sum + exp.amount, 0)
+              
+              return {
+                ...member,
+                totalSpent,
+                remaining: member.is_leader ? null : member.budget - totalSpent,
+                percentageUsed: member.is_leader ? null : (totalSpent / member.budget) * 100
+              } as MemberWithSpending
+            })
+          )
+          
+          // Calculate team totals based on members
+          const totalBudget = teamMembers
+            .filter(m => !m.is_leader)
+            .reduce((sum, m) => sum + m.budget, 0)
+          const totalSpent = membersWithSpending
+            .reduce((sum, m) => sum + m.totalSpent, 0)
+          
+          return {
+            ...team,
+            members: membersWithSpending,
+            totalBudget,
+            totalSpent,
+            remaining: totalBudget - totalSpent
+          } as TeamWithMembers
+        })
+      )
+      
+      setTeamsWithMembers(teamsWithMemberData)
+      
+      // Keep the old teamsData format for compatibility with existing components
       const teamsWithData = teamsResult.map(team => {
+        const teamData = teamsWithMemberData.find(t => t.id === team.id)!
         const teamExpenditures = expenditures.filter(exp => exp.team_id === team.id)
-        const totalSpent = teamExpenditures.reduce((sum, exp) => sum + exp.amount, 0)
-        const remaining = team.budget - totalSpent
-        const percentageUsed = (totalSpent / team.budget) * 100
-
+        
         return {
           ...team,
           expenditures: teamExpenditures,
-          totalSpent,
-          remaining,
-          percentageUsed
+          totalSpent: teamData.totalSpent,
+          remaining: teamData.remaining,
+          percentageUsed: teamData.totalBudget > 0 ? (teamData.totalSpent / teamData.totalBudget) * 100 : 0
         }
       })
 
@@ -75,9 +122,10 @@ export default function Dashboard() {
     setSelectedMonth(month)
   }
 
-  const totalBudget = teams.reduce((sum, team) => sum + team.budget, 0)
-  const totalSpent = teamsData.reduce((sum, team) => sum + team.totalSpent, 0)
+  const totalBudget = teamsWithMembers.reduce((sum, team) => sum + team.totalBudget, 0)
+  const totalSpent = teamsWithMembers.reduce((sum, team) => sum + team.totalSpent, 0)
   const totalRemaining = totalBudget - totalSpent
+  const totalMembers = teamsWithMembers.reduce((sum, team) => sum + team.members.length, 0)
   
   // Get selected month name
   const selectedMonthName = new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { 
@@ -131,6 +179,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Budget</p>
                 <p className="text-2xl font-bold text-gray-900">{totalBudget.toLocaleString()}U</p>
+                <p className="text-xs text-gray-500">Member budgets only</p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
@@ -159,8 +208,8 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Teams</p>
-                <p className="text-2xl font-bold text-gray-900">{teams.length}</p>
+                <p className="text-sm font-medium text-gray-600">Members</p>
+                <p className="text-2xl font-bold text-gray-900">{totalMembers}</p>
               </div>
               <Users className="w-8 h-8 text-purple-600" />
             </div>
@@ -175,20 +224,50 @@ export default function Dashboard() {
           </div>
           
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Budget Overview</h3>
+            <h3 className="text-lg font-semibold mb-4">Team Overview</h3>
             <div className="space-y-4">
-              {teamsData.map(team => (
-                <div key={team.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
-                      style={{ backgroundColor: team.color }}
-                    ></div>
-                    <span className="font-medium">{team.name}</span>
+              {teamsWithMembers.map(team => (
+                <div key={team.id} className="group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-4 h-4 rounded-full" 
+                        style={{ backgroundColor: team.color }}
+                      ></div>
+                      <span className="font-medium">{team.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{team.totalSpent.toLocaleString()}U / {team.totalBudget.toLocaleString()}U</p>
+                      <p className="text-sm text-gray-600">
+                        {team.totalBudget > 0 ? ((team.totalSpent / team.totalBudget) * 100).toFixed(1) : 0}% used
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{team.totalSpent.toLocaleString()}U / {team.budget.toLocaleString()}U</p>
-                    <p className="text-sm text-gray-600">{team.percentageUsed.toFixed(1)}% used</p>
+                  
+                  {/* Member details on hover */}
+                  <div className="hidden group-hover:block mt-2 ml-7 space-y-1">
+                    {team.members.map(member => (
+                      <div key={member.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-600">{member.name}</span>
+                          {member.is_leader && <Infinity className="w-3 h-3 text-blue-500" />}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-700">
+                            {member.totalSpent.toFixed(0)}U
+                            {!member.is_leader && ` / ${member.budget}U`}
+                          </span>
+                          {!member.is_leader && (
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-500 h-2 rounded-full transition-all"
+                                style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -198,8 +277,19 @@ export default function Dashboard() {
 
         {/* Team Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {teamsData.map(team => (
-            <TeamCard key={team.id} team={team} />
+          {teamsWithMembers.map(team => (
+            <TeamCard 
+              key={team.id} 
+              team={{
+                ...team,
+                budget: team.totalBudget,
+                expenditures: teamsData.find(t => t.id === team.id)?.expenditures || [],
+                totalSpent: team.totalSpent,
+                remaining: team.remaining,
+                percentageUsed: team.totalBudget > 0 ? (team.totalSpent / team.totalBudget) * 100 : 0
+              }} 
+              members={team.members}
+            />
           ))}
         </div>
 

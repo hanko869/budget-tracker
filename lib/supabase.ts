@@ -32,9 +32,25 @@ export interface Team {
   created_at?: string
 }
 
+export interface Member {
+  id: string
+  team_id: string
+  name: string
+  is_leader: boolean
+  budget: number
+  created_at?: string
+}
+
+export interface MemberWithSpending extends Member {
+  totalSpent: number
+  remaining: number | null
+  percentageUsed: number | null
+}
+
 export interface Expenditure {
   id: string
   team_id: string
+  member_id?: string
   amount: number
   unit_price: number
   quantity: number
@@ -489,6 +505,285 @@ export const dbOperations = {
       }
     } catch (error) {
       console.error('Error deleting team:', error)
+      return false
+    }
+  },
+
+  // Get all members for a team
+  async getTeamMembers(teamId?: string): Promise<Member[]> {
+    try {
+      if (supabase) {
+        let query = supabase.from('members').select('*')
+        
+        if (teamId) {
+          query = query.eq('team_id', teamId)
+        }
+        
+        const { data, error } = await query.order('is_leader', { ascending: false }).order('name')
+        
+        if (error) {
+          console.error('Supabase error fetching members:', error)
+          return []
+        }
+        
+        return data || []
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return []
+        const stored = localStorage.getItem('members')
+        const allMembers = stored ? JSON.parse(stored) : []
+        
+        if (teamId) {
+          return allMembers.filter((member: Member) => member.team_id === teamId)
+        }
+        
+        return allMembers
+      }
+    } catch (error) {
+      console.error('Error fetching members:', error)
+      return []
+    }
+  },
+
+  // Get member with spending info
+  async getMemberWithSpending(memberId: string, year?: number, month?: number): Promise<MemberWithSpending | null> {
+    try {
+      const { start, end } = year !== undefined && month !== undefined 
+        ? getMonthDateRange(year, month)
+        : getCurrentMonthDateRange()
+      
+      if (supabase) {
+        // Get member info
+        const { data: member, error: memberError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('id', memberId)
+          .single()
+        
+        if (memberError || !member) {
+          console.error('Error fetching member:', memberError)
+          return null
+        }
+
+        // Get member spending
+        const { data: expenditures, error: expError } = await supabase
+          .from('expenditures')
+          .select('amount')
+          .eq('member_id', memberId)
+          .gte('date', start)
+          .lte('date', end)
+        
+        if (expError) {
+          console.error('Error fetching member expenditures:', expError)
+          return null
+        }
+
+        const totalSpent = expenditures?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0
+        
+        return {
+          ...member,
+          totalSpent,
+          remaining: member.is_leader ? null : member.budget - totalSpent,
+          percentageUsed: member.is_leader ? null : (totalSpent / member.budget) * 100
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Error fetching member with spending:', error)
+      return null
+    }
+  },
+
+  // Create new member
+  async createMember(member: Omit<Member, 'id' | 'created_at'>): Promise<Member | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('members')
+          .insert([member])
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error creating member:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        const newMember: Member = {
+          ...member,
+          id: Date.now().toString(),
+          created_at: new Date().toISOString()
+        }
+
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('members')
+          const members = stored ? JSON.parse(stored) : []
+          members.push(newMember)
+          localStorage.setItem('members', JSON.stringify(members))
+        }
+
+        return newMember
+      }
+    } catch (error) {
+      console.error('Error creating member:', error)
+      return null
+    }
+  },
+
+  // Update member
+  async updateMember(memberId: string, updates: Partial<Member>): Promise<Member | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('members')
+          .update(updates)
+          .eq('id', memberId)
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error updating member:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return null
+
+        const stored = localStorage.getItem('members')
+        const members = stored ? JSON.parse(stored) : []
+        const memberIndex = members.findIndex((member: Member) => member.id === memberId)
+        
+        if (memberIndex !== -1) {
+          members[memberIndex] = { ...members[memberIndex], ...updates }
+          localStorage.setItem('members', JSON.stringify(members))
+          return members[memberIndex]
+        }
+        return null
+      }
+    } catch (error) {
+      console.error('Error updating member:', error)
+      return null
+    }
+  },
+
+  // Delete member
+  async deleteMember(memberId: string): Promise<boolean> {
+    try {
+      if (supabase) {
+        // Member expenditures will have member_id set to NULL due to ON DELETE SET NULL
+        const { error } = await supabase
+          .from('members')
+          .delete()
+          .eq('id', memberId)
+        
+        if (error) {
+          console.error('Supabase error deleting member:', error)
+          throw error
+        }
+        
+        return true
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return false
+
+        const stored = localStorage.getItem('members')
+        const members = stored ? JSON.parse(stored) : []
+        const filtered = members.filter((member: Member) => member.id !== memberId)
+        localStorage.setItem('members', JSON.stringify(filtered))
+
+        return true
+      }
+    } catch (error) {
+      console.error('Error deleting member:', error)
+      return false
+    }
+  },
+
+  // Add expenditure with member
+  async addExpenditureWithMember(expenditure: Omit<Expenditure, 'id' | 'created_at'>): Promise<Expenditure | null> {
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('expenditures')
+          .insert([{
+            team_id: expenditure.team_id,
+            member_id: expenditure.member_id,
+            amount: expenditure.amount,
+            unit_price: expenditure.unit_price,
+            quantity: expenditure.quantity,
+            description: expenditure.description,
+            date: expenditure.date
+          }])
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('Supabase error:', error)
+          throw error
+        }
+        
+        return data
+      } else {
+        // Fallback to localStorage
+        const newExpenditure: Expenditure = {
+          ...expenditure,
+          id: Date.now().toString(),
+          created_at: new Date().toISOString()
+        }
+
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('expenditures')
+          const expenditures = stored ? JSON.parse(stored) : []
+          expenditures.push(newExpenditure)
+          localStorage.setItem('expenditures', JSON.stringify(expenditures))
+        }
+
+        return newExpenditure
+      }
+    } catch (error) {
+      console.error('Error adding expenditure:', error)
+      return null
+    }
+  },
+
+  // Assign member to existing expenditure
+  async assignMemberToExpenditure(expenditureId: string, memberId: string): Promise<boolean> {
+    try {
+      if (supabase) {
+        const { error } = await supabase
+          .from('expenditures')
+          .update({ member_id: memberId })
+          .eq('id', expenditureId)
+        
+        if (error) {
+          console.error('Supabase error assigning member:', error)
+          throw error
+        }
+        
+        return true
+      } else {
+        // Fallback to localStorage
+        if (typeof window === 'undefined') return false
+
+        const stored = localStorage.getItem('expenditures')
+        const expenditures = stored ? JSON.parse(stored) : []
+        const index = expenditures.findIndex((exp: Expenditure) => exp.id === expenditureId)
+        
+        if (index !== -1) {
+          expenditures[index].member_id = memberId
+          localStorage.setItem('expenditures', JSON.stringify(expenditures))
+          return true
+        }
+        return false
+      }
+    } catch (error) {
+      console.error('Error assigning member to expenditure:', error)
       return false
     }
   }

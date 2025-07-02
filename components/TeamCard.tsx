@@ -1,15 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { TeamWithExpenditures } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Calculator } from 'lucide-react'
+import { TeamWithExpenditures, MemberWithSpending } from '@/lib/supabase'
+import { ChevronDown, ChevronUp, Calculator, Infinity } from 'lucide-react'
 
 interface TeamCardProps {
   team: TeamWithExpenditures
+  members?: MemberWithSpending[]
 }
 
-export default function TeamCard({ team }: TeamCardProps) {
+export default function TeamCard({ team, members }: TeamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return 'bg-danger-500'
@@ -63,6 +65,55 @@ export default function TeamCard({ team }: TeamCardProps) {
             ></div>
           </div>
         </div>
+
+        {/* Members Section */}
+        {members && members.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-gray-700">
+                Members ({members.length})
+              </h4>
+              <button
+                onClick={() => setShowMembers(!showMembers)}
+                className="flex items-center space-x-1 text-primary-600 hover:text-primary-700 text-sm"
+              >
+                <span>{showMembers ? 'Hide Members' : 'Show Members'}</span>
+                {showMembers ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
+            {showMembers && (
+              <div className="space-y-2 mb-4">
+                {members.map(member => (
+                  <div key={member.id} className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-900 text-sm">{member.name}</span>
+                        {member.is_leader && <Infinity className="w-4 h-4 text-blue-500" />}
+                      </div>
+                      <span className="text-sm text-gray-700">
+                        {member.totalSpent.toFixed(0)}U
+                        {!member.is_leader && ` / ${member.budget}U`}
+                      </span>
+                    </div>
+                    {!member.is_leader && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all ${getProgressColor(member.percentageUsed || 0)}`}
+                          style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Expenditures Section */}
         {team.expenditures.length > 0 && (
