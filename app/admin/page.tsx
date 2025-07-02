@@ -20,11 +20,18 @@ export default function AdminPanel() {
   const [showBudgetManagement, setShowBudgetManagement] = useState(false)
   const [showTeamManagement, setShowTeamManagement] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [newExpenditure, setNewExpenditure] = useState({
+  const [newExpenditure, setNewExpenditure] = useState<{
+    team_id: string;
+    amount: number;
+    unit_price: number | '';
+    quantity: number | '';
+    description: string;
+    date: string;
+  }>({
     team_id: '',
     amount: 0,
-    unit_price: 0,
-    quantity: 1,
+    unit_price: '',
+    quantity: '',
     description: '',
     date: getBeiJingDate()
   })
@@ -93,8 +100,10 @@ export default function AdminPanel() {
     }
   }
 
-  const calculateTotal = (unitPrice: number, quantity: number) => {
-    return unitPrice * quantity
+  const calculateTotal = (unitPrice: number | '', quantity: number | '') => {
+    const price = typeof unitPrice === 'number' ? unitPrice : parseFloat(unitPrice || '0')
+    const qty = typeof quantity === 'number' ? quantity : parseInt(quantity || '0')
+    return price * qty
   }
 
   const handleAddExpenditure = async (e: React.FormEvent) => {
@@ -102,13 +111,15 @@ export default function AdminPanel() {
     setLoading(true)
 
     try {
-      const totalAmount = newExpenditure.unit_price * newExpenditure.quantity
+      const unitPrice = typeof newExpenditure.unit_price === 'number' ? newExpenditure.unit_price : parseFloat(newExpenditure.unit_price || '0')
+      const quantity = typeof newExpenditure.quantity === 'number' ? newExpenditure.quantity : parseInt(newExpenditure.quantity || '0')
+      const totalAmount = unitPrice * quantity
 
       const expenditureData = {
         team_id: newExpenditure.team_id,
         amount: totalAmount,
-        unit_price: newExpenditure.unit_price,
-        quantity: newExpenditure.quantity,
+        unit_price: unitPrice,
+        quantity: quantity,
         description: newExpenditure.description,
         date: newExpenditure.date,
       }
@@ -120,8 +131,8 @@ export default function AdminPanel() {
         setNewExpenditure({
           team_id: '',
           amount: 0,
-          unit_price: 0,
-          quantity: 1,
+          unit_price: '',
+          quantity: '',
           description: '',
           date: getBeiJingDate()
         })
