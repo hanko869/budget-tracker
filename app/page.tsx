@@ -50,6 +50,12 @@ export default function Dashboard() {
         teamsResult.map(async (team) => {
           const teamMembers = allMembers.filter(m => m.team_id === team.id)
           
+          // Get all team expenditures
+          const teamExpenditures = expenditures.filter(exp => exp.team_id === team.id)
+          const unassignedSpending = teamExpenditures
+            .filter(exp => !exp.member_id)
+            .reduce((sum, exp) => sum + exp.amount, 0)
+          
           // Get member spending data
           const membersWithSpending = await Promise.all(
             teamMembers.map(async (member) => {
@@ -66,11 +72,12 @@ export default function Dashboard() {
           )
           
           // Calculate team totals based on members
-          const totalBudget = teamMembers
-            .filter(m => !m.is_leader)
-            .reduce((sum, m) => sum + m.budget, 0)
-          const totalSpent = membersWithSpending
-            .reduce((sum, m) => sum + m.totalSpent, 0)
+          const totalBudget = teamMembers.length > 0 
+            ? teamMembers.filter(m => !m.is_leader).reduce((sum, m) => sum + m.budget, 0)
+            : team.budget // Use team budget if no members defined
+          
+          const memberSpending = membersWithSpending.reduce((sum, m) => sum + m.totalSpent, 0)
+          const totalSpent = memberSpending + unassignedSpending
           
           return {
             ...team,
@@ -268,6 +275,18 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ))}
+                    {/* Show unassigned spending if any */}
+                    {(() => {
+                      const unassigned = teamsData.find(t => t.id === team.id)?.expenditures
+                        .filter(exp => !exp.member_id)
+                        .reduce((sum, exp) => sum + exp.amount, 0) || 0
+                      return unassigned > 0 ? (
+                        <div className="flex items-center justify-between text-sm border-t pt-1 mt-1">
+                          <span className="text-gray-500 italic">Unassigned</span>
+                          <span className="text-gray-700">{unassigned.toFixed(0)}U</span>
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 </div>
               ))}
