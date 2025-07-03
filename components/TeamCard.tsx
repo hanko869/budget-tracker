@@ -12,6 +12,7 @@ interface TeamCardProps {
 export default function TeamCard({ team, members }: TeamCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return 'bg-danger-500'
@@ -23,6 +24,20 @@ export default function TeamCard({ team, members }: TeamCardProps) {
     if (percentage >= 90) return 'bg-danger-100'
     if (percentage >= 75) return 'bg-warning-100'
     return 'bg-success-100'
+  }
+
+  const getMemberName = (memberId: string | undefined) => {
+    if (!memberId || !members) return null
+    const member = members.find(m => m.id === memberId)
+    return member?.name || 'Unknown'
+  }
+
+  const filteredExpenditures = selectedMemberId 
+    ? team.expenditures.filter(exp => exp.member_id === selectedMemberId)
+    : team.expenditures
+
+  const handleMemberClick = (memberId: string) => {
+    setSelectedMemberId(selectedMemberId === memberId ? null : memberId)
   }
 
   return (
@@ -89,7 +104,13 @@ export default function TeamCard({ team, members }: TeamCardProps) {
             {showMembers && (
               <div className="space-y-2 mb-4">
                 {members.map(member => (
-                  <div key={member.id} className="bg-gray-50 rounded-lg p-3">
+                  <div 
+                    key={member.id} 
+                    className={`bg-gray-50 rounded-lg p-3 cursor-pointer transition-all ${
+                      selectedMemberId === member.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-100'
+                    }`}
+                    onClick={() => handleMemberClick(member.id)}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900 text-sm">{member.name}</span>
@@ -110,6 +131,14 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     )}
                   </div>
                 ))}
+                {selectedMemberId && (
+                  <button
+                    onClick={() => setSelectedMemberId(null)}
+                    className="text-xs text-blue-600 hover:text-blue-700 mt-2"
+                  >
+                    Clear filter
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -120,7 +149,12 @@ export default function TeamCard({ team, members }: TeamCardProps) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium text-gray-700">
-                Expenses ({team.expenditures.length})
+                Expenses ({filteredExpenditures.length})
+                {selectedMemberId && (
+                  <span className="text-xs text-blue-600 ml-2">
+                    (Filtered by {getMemberName(selectedMemberId)})
+                  </span>
+                )}
               </h4>
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -138,25 +172,39 @@ export default function TeamCard({ team, members }: TeamCardProps) {
             {!isExpanded ? (
               /* Collapsed View - Recent Expenses */
               <div className="space-y-2 max-h-32 overflow-y-auto">
-                {team.expenditures.slice(-3).reverse().map((exp) => (
+                {filteredExpenditures.slice(-3).reverse().map((exp) => (
                   <div key={exp.id} className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 truncate">{exp.description}</span>
-                    <span className="font-medium text-gray-900">{exp.amount.toFixed(2)}U</span>
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <span className="text-gray-600 truncate">{exp.description}</span>
+                      {exp.member_id && members && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {getMemberName(exp.member_id)}
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-medium text-gray-900 ml-2">{exp.amount.toFixed(2)}U</span>
                   </div>
                 ))}
-                {team.expenditures.length > 3 && (
+                {filteredExpenditures.length > 3 && (
                   <div className="text-xs text-gray-500 text-center pt-1">
-                    +{team.expenditures.length - 3} more expenses
+                    +{filteredExpenditures.length - 3} more expenses
                   </div>
                 )}
               </div>
             ) : (
               /* Expanded View - Detailed Expenses */
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {team.expenditures.slice().reverse().map((exp) => (
+                {filteredExpenditures.slice().reverse().map((exp) => (
                   <div key={exp.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                     <div className="flex justify-between items-start mb-2">
-                      <h5 className="font-medium text-gray-900 text-sm">{exp.description}</h5>
+                      <div className="flex-1">
+                        <h5 className="font-medium text-gray-900 text-sm">{exp.description}</h5>
+                        {exp.member_id && members && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full inline-block mt-1">
+                            {getMemberName(exp.member_id)}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-gray-500">{exp.date}</span>
                     </div>
                     
@@ -198,9 +246,12 @@ export default function TeamCard({ team, members }: TeamCardProps) {
         )}
 
         {/* No Expenses Message */}
-        {team.expenditures.length === 0 && (
+        {filteredExpenditures.length === 0 && (
           <div className="text-center py-4 text-gray-500 text-sm">
-            No expenses recorded yet
+            {selectedMemberId 
+              ? `No expenses recorded for ${getMemberName(selectedMemberId)}`
+              : 'No expenses recorded yet'
+            }
           </div>
         )}
       </div>
