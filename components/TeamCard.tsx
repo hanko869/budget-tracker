@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { TeamWithExpenditures, MemberWithSpending } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Calculator, Infinity } from 'lucide-react'
+import { ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 
 interface TeamCardProps {
   team: TeamWithExpenditures
@@ -93,7 +93,7 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900 text-sm">{member.name}</span>
-                        {member.is_leader && <Infinity className="w-4 h-4 text-blue-500" />}
+                        {member.is_leader && <span className="text-blue-500">∞</span>}
                       </div>
                       <span className="text-sm text-gray-700">
                         {member.totalSpent.toFixed(0)}U

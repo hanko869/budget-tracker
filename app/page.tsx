@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, DollarSign, TrendingUp, Users, Infinity } from 'lucide-react'
+import { Plus, DollarSign, TrendingUp, Users } from 'lucide-react'
 import TeamCard from '@/components/TeamCard'
 import SpendingChart from '@/components/SpendingChart'
 import MonthSelector from '@/components/MonthSelector'
@@ -250,7 +250,7 @@ export default function Dashboard() {
                       <div key={member.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-600">{member.name}</span>
-                          {member.is_leader && <Infinity className="w-3 h-3 text-blue-500" />}
+                          {member.is_leader && <span className="text-blue-500">∞</span>}
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-700">
