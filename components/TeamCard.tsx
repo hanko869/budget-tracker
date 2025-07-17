@@ -172,7 +172,7 @@ export default function TeamCard({ team, members }: TeamCardProps) {
             {!isExpanded ? (
               /* Collapsed View - Recent Expenses */
               <div className="space-y-2 max-h-32 overflow-y-auto">
-                {filteredExpenditures.slice(-3).reverse().map((exp) => (
+                {filteredExpenditures.slice(0, 3).map((exp) => (
                   <div key={exp.id} className="flex justify-between items-center text-sm">
                     <div className="flex items-center space-x-2 flex-1 min-w-0">
                       <span className="text-gray-600 truncate">{exp.description}</span>
@@ -194,7 +194,7 @@ export default function TeamCard({ team, members }: TeamCardProps) {
             ) : (
               /* Expanded View - Detailed Expenses */
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {filteredExpenditures.slice().reverse().map((exp) => (
+                {filteredExpenditures.map((exp) => (
                   <div key={exp.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">

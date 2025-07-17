@@ -232,6 +232,7 @@ export const dbOperations = {
           .select('*')
           .gte('date', start)
           .lte('date', end)
+          .order('date', { ascending: false })
           .order('created_at', { ascending: false })
         
         if (error) {
@@ -248,7 +249,7 @@ export const dbOperations = {
         const allExpenditures = stored ? JSON.parse(stored) : []
         
         // Filter by specified or current month
-        return allExpenditures.filter((exp: Expenditure) => {
+        const filtered = allExpenditures.filter((exp: Expenditure) => {
           const expDate = new Date(exp.date)
           if (year !== undefined && month !== undefined) {
             return expDate.getMonth() === month && expDate.getFullYear() === year
@@ -257,6 +258,13 @@ export const dbOperations = {
             return expDate.getMonth() === now.getMonth() && 
                    expDate.getFullYear() === now.getFullYear()
           }
+        })
+        
+        // Sort by date (most recent first), then by created_at
+        return filtered.sort((a: Expenditure, b: Expenditure) => {
+          const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime()
+          if (dateCompare !== 0) return dateCompare
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         })
       }
     } catch (error) {
