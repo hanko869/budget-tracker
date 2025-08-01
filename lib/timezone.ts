@@ -3,8 +3,8 @@
 
 export const getBeiJingDate = (): string => {
   const now = new Date()
-  // Beijing is UTC+8
-  const beijingTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000))
+  // Convert to Beijing time (UTC+8)
+  const beijingTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Shanghai"}))
   return beijingTime.toISOString().split('T')[0]
 }
 
@@ -16,7 +16,7 @@ export const formatDateForBeijing = (dateString: string): string => {
 
 export const getBeiJingDateTime = (): string => {
   const now = new Date()
-  // Beijing is UTC+8
-  const beijingTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000))
+  // Convert to Beijing time (UTC+8)
+  const beijingTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Shanghai"}))
   return beijingTime.toISOString()
 } 
