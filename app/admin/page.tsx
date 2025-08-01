@@ -473,7 +473,6 @@ export default function AdminPanel() {
                         }`}
                       >
                         {member.name}
-                        {member.is_leader && ' ∞'}
                       </button>
                     ))}
                   </div>
@@ -704,7 +703,7 @@ export default function AdminPanel() {
                       .filter(member => member.team_id === editingExpenditure.team_id)
                       .map(member => (
                         <option key={member.id} value={member.id}>
-                          {member.name} {member.is_leader ? '∞' : ''}
+                          {member.name}
                         </option>
                       ))}
                   </select>

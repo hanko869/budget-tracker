@@ -114,21 +114,17 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900 text-sm">{member.name}</span>
-                        {member.is_leader && <span className="text-blue-500">∞</span>}
                       </div>
                       <span className="text-sm text-gray-700">
-                        {member.totalSpent.toFixed(0)}U
-                        {!member.is_leader && ` / ${member.budget}U`}
+                        {member.totalSpent.toFixed(0)}U / {member.budget}U
                       </span>
                     </div>
-                    {!member.is_leader && (
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all ${getProgressColor(member.percentageUsed || 0)}`}
-                          style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
-                        />
-                      </div>
-                    )}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${getProgressColor(member.percentageUsed || 0)}`}
+                        style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
+                      />
+                    </div>
                   </div>
                 ))}
                 {selectedMemberId && (

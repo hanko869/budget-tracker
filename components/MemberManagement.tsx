@@ -8,7 +8,6 @@ const MemberManagement = () => {
   const [members, setMembers] = useState<Member[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const [newMemberName, setNewMemberName] = useState('')
-  const [newMemberIsLeader, setNewMemberIsLeader] = useState(false)
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [editingMemberName, setEditingMemberName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,13 +59,11 @@ const MemberManagement = () => {
       const newMember = await dbOperations.createMember({
         team_id: selectedTeamId,
         name: newMemberName.trim(),
-        is_leader: newMemberIsLeader,
-        budget: newMemberIsLeader ? 0 : 1400
+        budget: 1400
       })
 
       if (newMember) {
         setNewMemberName('')
-        setNewMemberIsLeader(false)
         await loadMembers(selectedTeamId)
       }
     } catch (error) {
@@ -172,16 +169,6 @@ const MemberManagement = () => {
             className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             onKeyPress={(e) => e.key === 'Enter' && handleAddMember()}
           />
-          <label className="flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50">
-            <input
-              type="checkbox"
-              checked={newMemberIsLeader}
-              onChange={(e) => setNewMemberIsLeader(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <span className="text-sm">Team Leader</span>
-            <span className="text-blue-500">∞</span>
-          </label>
           <button
             onClick={handleAddMember}
             disabled={loading || !newMemberName.trim()}
@@ -222,15 +209,7 @@ const MemberManagement = () => {
                     ) : (
                       <>
                         <span className="font-medium">{member.name}</span>
-                        {member.is_leader && (
-                          <div className="flex items-center gap-1 text-blue-500">
-                            <span className="text-sm">Leader</span>
-                            <span>∞</span>
-                          </div>
-                        )}
-                        {!member.is_leader && (
-                          <span className="text-sm text-gray-500">Budget: $1,400</span>
-                        )}
+                        <span className="text-sm text-gray-500">Budget: $1,400</span>
                       </>
                     )}
                   </div>

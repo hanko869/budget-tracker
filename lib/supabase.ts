@@ -36,7 +36,6 @@ export interface Member {
   id: string
   team_id: string
   name: string
-  is_leader: boolean
   budget: number
   created_at?: string
 }
@@ -527,7 +526,7 @@ export const dbOperations = {
           query = query.eq('team_id', teamId)
         }
         
-        const { data, error } = await query.order('is_leader', { ascending: false }).order('name')
+        const { data, error } = await query.order('name')
         
         if (error) {
           console.error('Supabase error fetching members:', error)
@@ -591,8 +590,8 @@ export const dbOperations = {
         return {
           ...member,
           totalSpent,
-          remaining: member.is_leader ? null : member.budget - totalSpent,
-          percentageUsed: member.is_leader ? null : (totalSpent / member.budget) * 100
+          remaining: member.budget - totalSpent,
+          percentageUsed: (totalSpent / member.budget) * 100
         }
       }
       

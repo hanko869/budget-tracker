@@ -65,15 +65,15 @@ export default function Dashboard() {
               return {
                 ...member,
                 totalSpent,
-                remaining: member.is_leader ? null : member.budget - totalSpent,
-                percentageUsed: member.is_leader ? null : (totalSpent / member.budget) * 100
+                remaining: member.budget - totalSpent,
+                percentageUsed: (totalSpent / member.budget) * 100
               } as MemberWithSpending
             })
           )
           
           // Calculate team totals based on members
           const totalBudget = teamMembers.length > 0 
-            ? teamMembers.filter(m => !m.is_leader).reduce((sum, m) => sum + m.budget, 0)
+            ? teamMembers.reduce((sum, m) => sum + m.budget, 0)
             : team.budget // Use team budget if no members defined
           
           const memberSpending = membersWithSpending.reduce((sum, m) => sum + m.totalSpent, 0)
@@ -257,21 +257,17 @@ export default function Dashboard() {
                       <div key={member.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-600">{member.name}</span>
-                          {member.is_leader && <span className="text-blue-500">∞</span>}
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-700">
-                            {member.totalSpent.toFixed(0)}U
-                            {!member.is_leader && ` / ${member.budget}U`}
+                            {member.totalSpent.toFixed(0)}U / {member.budget}U
                           </span>
-                          {!member.is_leader && (
-                            <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full transition-all"
-                                style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
-                              />
-                            </div>
-                          )}
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full transition-all"
+                              style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
