@@ -36,7 +36,7 @@ export interface Member {
   id: string
   team_id: string
   name: string
-  budget: number
+  budget?: number | null
   created_at?: string
 }
 
@@ -56,6 +56,8 @@ export interface Expenditure {
   description: string
   date: string
   created_at: string
+  team_name_historical?: string
+  member_name_historical?: string
 }
 
 export interface TeamWithExpenditures extends Team {
@@ -392,9 +394,16 @@ export const dbOperations = {
   async createTeam(team: Omit<Team, 'id' | 'created_at'>): Promise<Team | null> {
     try {
       if (supabase) {
+        // Generate a unique ID for the team
+        const teamId = Date.now().toString()
+        const teamWithId = {
+          ...team,
+          id: teamId
+        }
+        
         const { data, error } = await supabase
           .from('teams')
-          .insert([team])
+          .insert([teamWithId])
           .select()
           .single()
         

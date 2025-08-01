@@ -59,7 +59,7 @@ const MemberManagement = () => {
       const newMember = await dbOperations.createMember({
         team_id: selectedTeamId,
         name: newMemberName.trim(),
-        budget: 1400
+        budget: null
       })
 
       if (newMember) {
@@ -209,7 +209,6 @@ const MemberManagement = () => {
                     ) : (
                       <>
                         <span className="font-medium">{member.name}</span>
-                        <span className="text-sm text-gray-500">Budget: $1,400</span>
                       </>
                     )}
                   </div>

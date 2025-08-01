@@ -65,16 +65,14 @@ export default function Dashboard() {
               return {
                 ...member,
                 totalSpent,
-                remaining: member.budget - totalSpent,
-                percentageUsed: (totalSpent / member.budget) * 100
+                remaining: null, // No budget limit
+                percentageUsed: null // No percentage since budget is unlimited
               } as MemberWithSpending
             })
           )
           
-          // Calculate team totals based on members
-          const totalBudget = teamMembers.length > 0 
-            ? teamMembers.reduce((sum, m) => sum + m.budget, 0)
-            : team.budget // Use team budget if no members defined
+          // Calculate team totals based on members (no budget limits now)
+          const totalBudget = 0 // No budget limits for members
           
           const memberSpending = membersWithSpending.reduce((sum, m) => sum + m.totalSpent, 0)
           const totalSpent = memberSpending + unassignedSpending
@@ -184,9 +182,9 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Budget</p>
-                <p className="text-2xl font-bold text-gray-900">{totalBudget.toLocaleString()}U</p>
-                <p className="text-xs text-gray-500">Member budgets only</p>
+                <p className="text-sm font-medium text-gray-600">Budget Status</p>
+                <p className="text-2xl font-bold text-gray-900">Unlimited</p>
+                <p className="text-xs text-gray-500">No budget limits</p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
@@ -260,14 +258,8 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-700">
-                            {member.totalSpent.toFixed(0)}U / {member.budget}U
+                            {member.totalSpent.toFixed(0)}U spent
                           </span>
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-500 h-2 rounded-full transition-all"
-                              style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
-                            />
-                          </div>
                         </div>
                       </div>
                     ))}

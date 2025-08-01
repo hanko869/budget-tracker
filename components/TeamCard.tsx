@@ -26,10 +26,16 @@ export default function TeamCard({ team, members }: TeamCardProps) {
     return 'bg-success-100'
   }
 
-  const getMemberName = (memberId: string | undefined) => {
-    if (!memberId || !members) return null
+  const getMemberName = (memberId: string | undefined, expenditure?: any) => {
+    if (!memberId || !members) {
+      // If no member_id but we have historical name, show that
+      return expenditure?.member_name_historical || null
+    }
     const member = members.find(m => m.id === memberId)
-    return member?.name || 'Unknown'
+    if (member) return member.name
+    
+    // If member no longer exists, use historical name
+    return expenditure?.member_name_historical || 'Unknown Member (Deleted)'
   }
 
   const filteredExpenditures = selectedMemberId 
@@ -111,19 +117,13 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     }`}
                     onClick={() => handleMemberClick(member.id)}
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-900 text-sm">{member.name}</span>
                       </div>
                       <span className="text-sm text-gray-700">
-                        {member.totalSpent.toFixed(0)}U / {member.budget}U
+                        {member.totalSpent.toFixed(0)}U spent
                       </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all ${getProgressColor(member.percentageUsed || 0)}`}
-                        style={{ width: `${Math.min(member.percentageUsed || 0, 100)}%` }}
-                      />
                     </div>
                   </div>
                 ))}
@@ -172,9 +172,9 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                   <div key={exp.id} className="flex justify-between items-center text-sm">
                     <div className="flex items-center space-x-2 flex-1 min-w-0">
                       <span className="text-gray-600 truncate">{exp.description}</span>
-                      {exp.member_id && members && (
+                      {(exp.member_id || exp.member_name_historical) && members && (
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
-                          {getMemberName(exp.member_id)}
+                          {getMemberName(exp.member_id, exp)}
                         </span>
                       )}
                     </div>
@@ -195,9 +195,9 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <h5 className="font-medium text-gray-900 text-sm">{exp.description}</h5>
-                        {exp.member_id && members && (
+                        {(exp.member_id || exp.member_name_historical) && members && (
                           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full inline-block mt-1">
-                            {getMemberName(exp.member_id)}
+                            {getMemberName(exp.member_id, exp)}
                           </span>
                         )}
                       </div>

@@ -259,14 +259,24 @@ export default function AdminPanel() {
     }
   }
 
-  const getTeamName = (teamId: string) => {
-    return teams.find(team => team.id === teamId)?.name || 'Unknown'
+  const getTeamName = (teamId: string, expenditure?: any) => {
+    const currentTeam = teams.find(team => team.id === teamId)
+    if (currentTeam) return currentTeam.name
+    
+    // If team no longer exists, use historical name
+    return expenditure?.team_name_historical || 'Unknown Team (Deleted)'
   }
 
-  const getMemberName = (memberId: string | undefined) => {
-    if (!memberId) return 'Unassigned'
+  const getMemberName = (memberId: string | undefined, expenditure?: any) => {
+    if (!memberId) {
+      // If no member_id but we have historical name, show that
+      return expenditure?.member_name_historical || 'Unassigned'
+    }
     const member = members.find(m => m.id === memberId)
-    return member ? member.name : 'Unknown'
+    if (member) return member.name
+    
+    // If member no longer exists, use historical name
+    return expenditure?.member_name_historical || 'Unknown Member (Deleted)'
   }
 
   if (!isAuthenticated) {
@@ -627,10 +637,10 @@ export default function AdminPanel() {
                   .map((expenditure) => (
                   <tr key={expenditure.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getTeamName(expenditure.team_id)}
+                      {getTeamName(expenditure.team_id, expenditure)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getMemberName(expenditure.member_id)}
+                      {getMemberName(expenditure.member_id, expenditure)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {expenditure.description}
