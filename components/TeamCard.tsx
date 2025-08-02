@@ -61,7 +61,9 @@ export default function TeamCard({ team, members }: TeamCardProps) {
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-sm text-gray-600">Budget</p>
-            <p className="text-lg font-bold text-gray-900">{team.budget.toLocaleString()}U</p>
+            <p className="text-lg font-bold text-gray-900">
+              {team.budget ? `${team.budget.toLocaleString()}U` : 'Unlimited'}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Spent</p>
@@ -117,13 +119,37 @@ export default function TeamCard({ team, members }: TeamCardProps) {
                     }`}
                     onClick={() => handleMemberClick(member.id)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-gray-900 text-sm">{member.name}</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-gray-900 text-sm">{member.name}</span>
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          {member.budget 
+                            ? `${member.totalSpent.toFixed(0)}U / ${member.budget.toFixed(0)}U`
+                            : `${member.totalSpent.toFixed(0)}U spent`
+                          }
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-700">
-                        {member.totalSpent.toFixed(0)}U spent
-                      </span>
+                      {member.budget && member.percentageUsed !== null && (
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                member.percentageUsed >= 100 
+                                  ? 'bg-red-500' 
+                                  : member.percentageUsed >= 80 
+                                  ? 'bg-yellow-500' 
+                                  : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(member.percentageUsed, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-600 min-w-[40px]">
+                            {member.percentageUsed.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

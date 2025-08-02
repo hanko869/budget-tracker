@@ -27,7 +27,7 @@ export const isDatabaseConnected = () => {
 export interface Team {
   id: string
   name: string
-  budget: number
+  budget?: number | null
   color: string
   created_at?: string
 }
@@ -36,11 +36,11 @@ export interface Member {
   id: string
   team_id: string
   name: string
-  budget?: number | null
   created_at?: string
 }
 
 export interface MemberWithSpending extends Member {
+  budget: number | null
   totalSpent: number
   remaining: number | null
   percentageUsed: number | null
@@ -436,19 +436,19 @@ export const dbOperations = {
     }
   },
 
-  // Update team name
-  async updateTeamName(teamId: string, newName: string): Promise<Team | null> {
+  // Update team (name and/or budget)
+  async updateTeam(teamId: string, updates: { name?: string; budget?: number | null }): Promise<Team | null> {
     try {
       if (supabase) {
         const { data, error } = await supabase
           .from('teams')
-          .update({ name: newName })
+          .update(updates)
           .eq('id', teamId)
           .select()
           .single()
         
         if (error) {
-          console.error('Supabase error updating team name:', error)
+          console.error('Supabase error updating team:', error)
           throw error
         }
         
@@ -462,16 +462,21 @@ export const dbOperations = {
         const teamIndex = teams.findIndex((team: Team) => team.id === teamId)
         
         if (teamIndex !== -1) {
-          teams[teamIndex].name = newName
+          teams[teamIndex] = { ...teams[teamIndex], ...updates }
           localStorage.setItem('teams', JSON.stringify(teams))
           return teams[teamIndex]
         }
         return null
       }
     } catch (error) {
-      console.error('Error updating team name:', error)
+      console.error('Error updating team:', error)
       return null
     }
+  },
+
+  // Update team name (legacy method, now uses updateTeam)
+  async updateTeamName(teamId: string, newName: string): Promise<Team | null> {
+    return this.updateTeam(teamId, { name: newName })
   },
 
   // Delete team (and all its expenditures)
@@ -569,15 +574,26 @@ export const dbOperations = {
         : getCurrentMonthDateRange()
       
       if (supabase) {
-        // Get member info
+        // Get member info and team info
         const { data: member, error: memberError } = await supabase
           .from('members')
-          .select('*')
+          .select('*, teams(budget)')
           .eq('id', memberId)
           .single()
         
         if (memberError || !member) {
           console.error('Error fetching member:', memberError)
+          return null
+        }
+
+        // Get team member count for budget calculation
+        const { data: teamMembers, error: teamMembersError } = await supabase
+          .from('members')
+          .select('id')
+          .eq('team_id', member.team_id)
+        
+        if (teamMembersError) {
+          console.error('Error fetching team members:', teamMembersError)
           return null
         }
 
@@ -596,11 +612,17 @@ export const dbOperations = {
 
         const totalSpent = expenditures?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0
         
+        // Calculate individual budget from team budget
+        const teamBudget = member.teams?.budget
+        const memberCount = teamMembers?.length || 1
+        const individualBudget = teamBudget ? teamBudget / memberCount : null
+        
         return {
           ...member,
+          budget: individualBudget,
           totalSpent,
-          remaining: member.budget - totalSpent,
-          percentageUsed: (totalSpent / member.budget) * 100
+          remaining: individualBudget ? individualBudget - totalSpent : null,
+          percentageUsed: individualBudget ? (totalSpent / individualBudget) * 100 : null
         }
       }
       

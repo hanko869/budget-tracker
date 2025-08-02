@@ -58,8 +58,7 @@ const MemberManagement = () => {
     try {
       const newMember = await dbOperations.createMember({
         team_id: selectedTeamId,
-        name: newMemberName.trim(),
-        budget: null
+        name: newMemberName.trim()
       })
 
       if (newMember) {

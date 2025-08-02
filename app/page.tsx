@@ -56,6 +56,11 @@ export default function Dashboard() {
             .filter(exp => !exp.member_id)
             .reduce((sum, exp) => sum + exp.amount, 0)
           
+          // Calculate individual budget from team budget
+          const individualBudget = team.budget && teamMembers.length > 0 
+            ? team.budget / teamMembers.length 
+            : null
+          
           // Get member spending data
           const membersWithSpending = await Promise.all(
             teamMembers.map(async (member) => {
@@ -64,15 +69,16 @@ export default function Dashboard() {
               
               return {
                 ...member,
+                budget: individualBudget,
                 totalSpent,
-                remaining: null, // No budget limit
-                percentageUsed: null // No percentage since budget is unlimited
+                remaining: individualBudget ? individualBudget - totalSpent : null,
+                percentageUsed: individualBudget ? (totalSpent / individualBudget) * 100 : null
               } as MemberWithSpending
             })
           )
           
-          // Calculate team totals based on members (no budget limits now)
-          const totalBudget = 0 // No budget limits for members
+          // Calculate team totals - use team budget or sum of members if no team budget
+          const totalBudget = team.budget || 0
           
           const memberSpending = membersWithSpending.reduce((sum, m) => sum + m.totalSpent, 0)
           const totalSpent = memberSpending + unassignedSpending
@@ -113,7 +119,7 @@ export default function Dashboard() {
         ...team,
         expenditures: [],
         totalSpent: 0,
-        remaining: team.budget,
+        remaining: team.budget || 0,
         percentageUsed: 0
       }))
       setTeamsData(staticTeamsData)
@@ -182,9 +188,9 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Budget Status</p>
-                <p className="text-2xl font-bold text-gray-900">Unlimited</p>
-                <p className="text-xs text-gray-500">No budget limits</p>
+                <p className="text-sm font-medium text-gray-600">Total Budget</p>
+                <p className="text-2xl font-bold text-gray-900">{totalBudget.toLocaleString()}U</p>
+                <p className="text-xs text-gray-500">{totalMembers} members × $1000</p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
@@ -258,8 +264,16 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-700">
-                            {member.totalSpent.toFixed(0)}U spent
+                            {member.budget 
+                              ? `${member.totalSpent.toFixed(0)}U / ${member.budget.toFixed(0)}U`
+                              : `${member.totalSpent.toFixed(0)}U spent`
+                            }
                           </span>
+                          {member.percentageUsed !== null && (
+                            <span className="text-xs text-gray-500">
+                              ({member.percentageUsed.toFixed(1)}%)
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -300,24 +314,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Database Status */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-blue-800">
-                <strong>Database Status:</strong> {(() => {
-                  const { isDatabaseConnected } = require('@/lib/supabase')
-                  return isDatabaseConnected() ? 'Connected to Supabase! 🎉' : 'Using fallback data - Add Supabase environment variables to enable database features.'
-                })()}
-              </p>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   )

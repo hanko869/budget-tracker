@@ -12,9 +12,10 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [editingBudget, setEditingBudget] = useState('')
   const [newTeam, setNewTeam] = useState({
     name: '',
-    budget: 0,
+    budget: '',
     color: '#3b82f6'
   })
   const [loading, setLoading] = useState(false)
@@ -71,13 +72,13 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
     try {
       const result = await dbOperations.createTeam({
         name: newTeam.name.trim(),
-        budget: newTeam.budget || 0,
+        budget: newTeam.budget ? parseFloat(newTeam.budget) : null,
         color: newTeam.color
       })
 
       if (result) {
         alert('✅ Team created successfully!')
-        setNewTeam({ name: '', budget: 0, color: '#3b82f6' })
+        setNewTeam({ name: '', budget: '', color: '#3b82f6' })
         setShowAddForm(false)
         onTeamsUpdate()
       } else {
@@ -91,12 +92,13 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
     }
   }
 
-  const handleEditName = (team: Team) => {
+  const handleEditTeam = (team: Team) => {
     setEditingTeamId(team.id)
     setEditingName(team.name)
+    setEditingBudget(team.budget ? team.budget.toString() : '')
   }
 
-  const handleSaveName = async (teamId: string) => {
+  const handleSaveTeam = async (teamId: string) => {
     if (!editingName.trim()) {
       setEditingTeamId(null)
       return
@@ -104,17 +106,24 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
 
     setLoading(true)
     try {
-      const result = await dbOperations.updateTeamName(teamId, editingName.trim())
+      const updates = {
+        name: editingName.trim(),
+        budget: editingBudget ? parseFloat(editingBudget) : null
+      }
+      
+      const result = await dbOperations.updateTeam(teamId, updates)
       if (result) {
-        alert('✅ Team name updated successfully!')
+        alert('✅ Team updated successfully!')
         setEditingTeamId(null)
+        setEditingName('')
+        setEditingBudget('')
         onTeamsUpdate()
       } else {
-        alert('❌ Error updating team name.')
+        alert('❌ Error updating team.')
       }
     } catch (error) {
-      console.error('Error updating team name:', error)
-      alert('❌ Error updating team name.')
+      console.error('Error updating team:', error)
+      alert('❌ Error updating team.')
     } finally {
       setLoading(false)
     }
@@ -161,8 +170,7 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
     try {
       const result = await dbOperations.updateMember(memberToMove.id, {
         team_id: targetTeamId,
-        name: memberToMove.name,
-        budget: memberToMove.budget
+        name: memberToMove.name
       })
 
       if (result) {
@@ -239,7 +247,7 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
               <input
                 type="number"
                 value={newTeam.budget || ''}
-                onChange={(e) => setNewTeam(prev => ({...prev, budget: parseInt(e.target.value) || 0}))}
+                onChange={(e) => setNewTeam(prev => ({...prev, budget: e.target.value}))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter budget amount (leave empty for 0)"
                 min="0"
@@ -292,32 +300,58 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
                     style={{ backgroundColor: team.color }}
                   ></div>
                   {editingTeamId === team.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded"
-                        onKeyPress={(e) => e.key === 'Enter' && handleSaveName(team.id)}
-                      />
-                      <button
-                        onClick={() => handleSaveName(team.id)}
-                        disabled={loading}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setEditingTeamId(null)}
-                        className="p-1 text-gray-600 hover:bg-gray-50 rounded"
-                      >
-                        ✕
-                      </button>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="Team name"
+                          />
+                          <input
+                            type="number"
+                            value={editingBudget}
+                            onChange={(e) => setEditingBudget(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="Budget (optional)"
+                            min="0"
+                          />
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleSaveTeam(team.id)}
+                            disabled={loading}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setEditingTeamId(null)}
+                            className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-medium text-lg">{team.name}</h4>
-                      <span className="text-sm text-gray-500">({teamMembers.length} members)</span>
+                      <div>
+                        <h4 className="font-medium text-lg">{team.name}</h4>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500">({teamMembers.length} members)</span>
+                          <span className="text-sm text-blue-600">
+                            Budget: {team.budget ? `${team.budget.toLocaleString()}U` : 'Unlimited'}
+                          </span>
+                          {team.budget && teamMembers.length > 0 && (
+                            <span className="text-xs text-gray-400">
+                              ({(team.budget / teamMembers.length).toFixed(0)}U per member)
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -332,7 +366,7 @@ export default function TeamManagement({ teams, onTeamsUpdate }: TeamManagementP
                         👥
                       </button>
                       <button
-                        onClick={() => handleEditName(team)}
+                        onClick={() => handleEditTeam(team)}
                         disabled={loading}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded"
                         title="Edit Name"
