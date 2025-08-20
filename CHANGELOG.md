@@ -31,3 +31,7 @@
   - `idx_expenditures_date`, `idx_expenditures_created_at`, `idx_expenditures_team_date`, `idx_expenditures_member_date`
   - `idx_members_team_id`, `idx_members_name`
   These improve filtering by month and ordering by date, reducing dashboard/admin lag.
+ - Admin: preloaded management components after login to remove first-click delays.
+ - Admin: extracted and memoized expenditures table; limited initial render to 100 rows with "Show more" to reduce DOM and improve scroll.
+ - Admin: memoized filtered rows to avoid re-computation on unrelated state changes.
+ - Dashboard: memoized chart data and disabled animations to reduce main-thread work.
