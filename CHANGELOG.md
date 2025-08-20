@@ -25,3 +25,9 @@
 - Updated progress bars to show spending amounts instead of budget percentages
 - Changed dashboard to display "Unlimited" budget status
 - Members now show "X spent" instead of "X / 1400U" 
+
+### Performance
+- Added `supabase/performance-indexes.sql` with safe indexes to speed up monthly queries:
+  - `idx_expenditures_date`, `idx_expenditures_created_at`, `idx_expenditures_team_date`, `idx_expenditures_member_date`
+  - `idx_members_team_id`, `idx_members_name`
+  These improve filtering by month and ordering by date, reducing dashboard/admin lag.

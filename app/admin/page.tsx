@@ -6,8 +6,9 @@ import { dbOperations, isDatabaseConnected, type Team, type Expenditure, type Me
 import { getBeiJingDate } from '@/lib/timezone'
 import { useRouter } from 'next/navigation'
 import MonthSelector from '@/components/MonthSelector'
-import TeamManagement from '@/components/TeamManagement'
-import MemberManagement from '@/components/MemberManagement'
+import dynamic from 'next/dynamic'
+const TeamManagement = dynamic(() => import('@/components/TeamManagement'), { ssr: false })
+const MemberManagement = dynamic(() => import('@/components/MemberManagement'), { ssr: false })
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)

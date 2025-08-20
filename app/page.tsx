@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, DollarSign, TrendingUp, Users } from 'lucide-react'
-import TeamCard from '@/components/TeamCard'
-import SpendingChart from '@/components/SpendingChart'
+import dynamic from 'next/dynamic'
+const TeamCard = dynamic(() => import('@/components/TeamCard'), { ssr: false })
+const SpendingChart = dynamic(() => import('@/components/SpendingChart'), { ssr: false })
 import MonthSelector from '@/components/MonthSelector'
 import { dbOperations, type TeamWithExpenditures, type Team, type Member, type MemberWithSpending } from '@/lib/supabase'
 
@@ -62,20 +63,23 @@ export default function Dashboard() {
             : null
           
           // Get member spending data
-          const membersWithSpending = await Promise.all(
-            teamMembers.map(async (member) => {
-              const memberExp = expenditures.filter(exp => exp.member_id === member.id)
-              const totalSpent = memberExp.reduce((sum, exp) => sum + exp.amount, 0)
-              
-              return {
-                ...member,
-                budget: individualBudget,
-                totalSpent,
-                remaining: individualBudget ? individualBudget - totalSpent : null,
-                percentageUsed: individualBudget ? (totalSpent / individualBudget) * 100 : null
-              } as MemberWithSpending
-            })
-          )
+          // Pre-aggregate spending per member for the month
+          const memberTotals = new Map<string, number>()
+          for (const exp of expenditures) {
+            if (exp.member_id) {
+              memberTotals.set(exp.member_id, (memberTotals.get(exp.member_id) || 0) + exp.amount)
+            }
+          }
+          const membersWithSpending = teamMembers.map((member) => {
+            const totalSpent = memberTotals.get(member.id) || 0
+            return {
+              ...member,
+              budget: individualBudget,
+              totalSpent,
+              remaining: individualBudget ? individualBudget - totalSpent : null,
+              percentageUsed: individualBudget ? (totalSpent / individualBudget) * 100 : null
+            } as MemberWithSpending
+          })
           
           // Calculate team totals - use team budget or sum of members if no team budget
           const totalBudget = team.budget || 0

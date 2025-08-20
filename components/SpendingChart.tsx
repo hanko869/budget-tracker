@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { TeamWithExpenditures } from '@/lib/supabase'
 
@@ -10,43 +11,49 @@ interface SpendingChartProps {
 }
 
 export default function SpendingChart({ teamsData, selectedYear, selectedMonth }: SpendingChartProps) {
-  // Generate chart data for the selected month
-  const generateChartData = () => {
-    const data = []
-    
-    // Use provided year/month or default to current
+  // Generate chart data for the selected month (memoized to avoid expensive recompute on every render)
+  const chartData = useMemo(() => {
+    const data = [] as any[]
+
     const today = new Date()
     const year = selectedYear ?? today.getFullYear()
     const month = selectedMonth ?? today.getMonth()
-    const monthForCalc = month + 1 // JavaScript months are 0-based, but we need 1-based for calculations
-    
-    // Get number of days in selected month
+    const monthForCalc = month + 1
+
     const daysInMonth = new Date(year, monthForCalc, 0).getDate()
 
-    // Generate data for each day of the selected month
-    for (let day = 1; day <= daysInMonth; day++) {
-      // Create date string in YYYY-MM-DD format to match database storage
-      const dateStr = `${year}-${monthForCalc.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
-
-      const dayData: any = {
-        date: dateStr,
-        day: day,
+    // Pre-aggregate: date -> teamName -> total
+    const byDate = new Map<string, Map<string, number>>()
+    for (const team of teamsData) {
+      for (const exp of team.expenditures) {
+        let tm = byDate.get(exp.date)
+        if (!tm) {
+          tm = new Map<string, number>()
+          byDate.set(exp.date, tm)
+        }
+        tm.set(team.name, (tm.get(team.name) || 0) + exp.amount)
       }
+    }
 
-      teamsData.forEach(team => {
-        const dayExpenses = team.expenditures
-          .filter(exp => exp.date === dateStr)
-          .reduce((sum, exp) => sum + exp.amount, 0)
-        dayData[team.name] = dayExpenses
-      })
-
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${monthForCalc.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+      const dayData: Record<string, number | string> = { date: dateStr, day }
+      const tm = byDate.get(dateStr)
+      if (tm) {
+        for (const team of teamsData) {
+          const val = tm.get(team.name) || 0
+          dayData[team.name] = val
+        }
+      } else {
+        for (const team of teamsData) {
+          dayData[team.name] = 0
+        }
+      }
       data.push(dayData)
     }
 
     return data
-  }
-
-  const chartData = generateChartData()
+  }, [teamsData, selectedYear, selectedMonth])
   
   // Get selected month name for display
   const getMonthName = () => {
@@ -88,6 +95,7 @@ export default function SpendingChart({ teamsData, selectedYear, selectedMonth }
               strokeWidth={2}
               dot={{ r: 4 }}
               activeDot={{ r: 6 }}
+              isAnimationActive={false}
               connectNulls={false}
             />
           ))}

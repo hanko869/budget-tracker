@@ -182,6 +182,12 @@ export const dbOperations = {
   // Initialize teams in database (call this once to populate)
   async initializeTeams(): Promise<boolean> {
     try {
+      // Avoid seeding in production unless explicitly enabled
+      const shouldSeed = process.env.NEXT_PUBLIC_ENABLE_DB_SEED === 'true'
+      if (!shouldSeed) {
+        return true
+      }
+
       if (supabase) {
         // Check if teams already exist
         const { data: existingTeams } = await supabase
