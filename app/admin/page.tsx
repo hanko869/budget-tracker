@@ -9,7 +9,7 @@ import MonthSelector from '@/components/MonthSelector'
 import dynamic from 'next/dynamic'
 const TeamManagement = dynamic(() => import('@/components/TeamManagement'), { ssr: false })
 const MemberManagement = dynamic(() => import('@/components/MemberManagement'), { ssr: false })
-const ExpendituresTable = dynamic(() => import('@/components/ExpendituresTable'), { ssr: false })
+import ExpendituresTable from '@/components/ExpendituresTable'
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -96,6 +96,14 @@ export default function AdminPanel() {
       alert('Invalid credentials')
     }
   }
+
+  // Preload admin chunks after login to avoid first-click delay
+  useEffect(() => {
+    if (isAuthenticated) {
+      import('@/components/TeamManagement')
+      import('@/components/MemberManagement')
+    }
+  }, [isAuthenticated])
 
   const loadData = async () => {
     setLoading(true)
