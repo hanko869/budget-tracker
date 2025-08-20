@@ -157,10 +157,24 @@ export default function AdminPanel() {
         date: newExpenditure.date,
       }
 
+      // Optimistic insert
+      const optimistic: Expenditure = {
+        id: 'temp-' + Date.now().toString(),
+        team_id: expenditureData.team_id,
+        member_id: expenditureData.member_id,
+        amount: expenditureData.amount,
+        unit_price: expenditureData.unit_price,
+        quantity: expenditureData.quantity,
+        description: expenditureData.description,
+        date: expenditureData.date,
+        created_at: new Date().toISOString()
+      }
+      setExpenditures(prev => [optimistic, ...prev])
+
       const result = await dbOperations.addExpenditureWithMember(expenditureData)
-      
       if (result) {
-        await loadData() // Refresh the data
+        // replace optimistic with real row
+        setExpenditures(prev => [result, ...prev.filter(r => r.id !== optimistic.id)])
         setNewExpenditure({
           team_id: '',
           member_id: '',
@@ -174,6 +188,8 @@ export default function AdminPanel() {
         setShowAddForm(false)
         alert('✅ Expenditure added successfully to database!')
       } else {
+        // rollback optimistic
+        setExpenditures(prev => prev.filter(r => r.id !== optimistic.id))
         alert('❌ Error: Could not save to database. Please check if environment variables are set in Vercel.')
       }
     } catch (error) {
@@ -208,13 +224,19 @@ export default function AdminPanel() {
         date: editingExpenditure.date,
       }
 
+      // Optimistic update
+      const original = expenditures.find(e => e.id === editingExpenditure.id)
+      setExpenditures(prev => prev.map(e => e.id === editingExpenditure.id ? { ...e, ...updates } as Expenditure : e))
+
       const result = await dbOperations.updateExpenditure(editingExpenditure.id, updates)
       
       if (result) {
-        await loadData()
+        // keep optimistic; server already matched
         setEditingExpenditure(null)
         alert('Expenditure updated successfully!')
       } else {
+        // rollback on failure
+        if (original) setExpenditures(prev => prev.map(e => e.id === original.id ? original : e))
         alert('Error updating expenditure.')
       }
     } catch (error) {
@@ -230,12 +252,17 @@ export default function AdminPanel() {
 
     setLoading(true)
     try {
+      // Optimistic delete
+      const original = expenditures
+      setExpenditures(prev => prev.filter(e => e.id !== id))
+
       const success = await dbOperations.deleteExpenditure(id)
       
       if (success) {
-        await loadData()
         alert('Expenditure deleted successfully!')
       } else {
+        // rollback
+        setExpenditures(original)
         alert('Error deleting expenditure.')
       }
     } catch (error) {
@@ -322,13 +349,11 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Loading Overlay */}
+        {/* Non-blocking status: show subtle spinner in header area when loading */}
         {loading && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-gray-700">Processing...</span>
-            </div>
+          <div className="fixed top-3 right-4 z-50 flex items-center space-x-2 bg-white/90 border rounded px-3 py-1 shadow-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-xs text-gray-700">Processing…</span>
           </div>
         )}
 
