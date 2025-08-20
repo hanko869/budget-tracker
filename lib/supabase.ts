@@ -141,8 +141,8 @@ export const dbOperations = {
     }
   },
 
-  // Update team budget
-  async updateTeamBudget(teamId: string, newBudget: number): Promise<Team | null> {
+  // Update team budget (nullable: null means unlimited)
+  async updateTeamBudget(teamId: string, newBudget: number | null): Promise<Team | null> {
     try {
       if (supabase) {
         const { data, error } = await supabase

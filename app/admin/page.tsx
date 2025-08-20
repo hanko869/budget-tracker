@@ -9,6 +9,7 @@ import MonthSelector from '@/components/MonthSelector'
 import dynamic from 'next/dynamic'
 const TeamManagement = dynamic(() => import('@/components/TeamManagement'), { ssr: false })
 const MemberManagement = dynamic(() => import('@/components/MemberManagement'), { ssr: false })
+const ExpendituresTable = dynamic(() => import('@/components/ExpendituresTable'), { ssr: false })
 
 export default function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -243,7 +244,7 @@ export default function AdminPanel() {
 
     setLoading(true)
     try {
-      const result = await dbOperations.updateTeamBudget(editingTeam.id, editingTeam.budget)
+      const result = await dbOperations.updateTeamBudget(editingTeam.id, editingTeam.budget ?? null)
       
       if (result) {
         await loadData()
@@ -260,25 +261,7 @@ export default function AdminPanel() {
     }
   }
 
-  const getTeamName = (teamId: string, expenditure?: any) => {
-    const currentTeam = teams.find(team => team.id === teamId)
-    if (currentTeam) return currentTeam.name
-    
-    // If team no longer exists, use historical name
-    return expenditure?.team_name_historical || 'Unknown Team (Deleted)'
-  }
-
-  const getMemberName = (memberId: string | undefined, expenditure?: any) => {
-    if (!memberId) {
-      // If no member_id but we have historical name, show that
-      return expenditure?.member_name_historical || 'Unassigned'
-    }
-    const member = members.find(m => m.id === memberId)
-    if (member) return member.name
-    
-    // If member no longer exists, use historical name
-    return expenditure?.member_name_historical || 'Unknown Member (Deleted)'
-  }
+  // moved into ExpendituresTable for memoized mapping
 
   if (!isAuthenticated) {
     return (
@@ -425,7 +408,7 @@ export default function AdminPanel() {
                     <h4 className="font-medium">{team.name}</h4>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 mb-2">
-                    {team.budget.toLocaleString()}U
+                    {team.budget != null ? `${team.budget.toLocaleString()}U` : 'Unlimited'}
                   </p>
                   <button
                     onClick={() => setEditingTeam(team)}
@@ -602,83 +585,14 @@ export default function AdminPanel() {
               ))}
             </select>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Team
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Member
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {expenditures
-                  .filter(exp => teamFilter === 'all' || exp.team_id === teamFilter)
-                  .map((expenditure) => (
-                  <tr key={expenditure.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getTeamName(expenditure.team_id, expenditure)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getMemberName(expenditure.member_id, expenditure)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {expenditure.description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {expenditure.unit_price?.toFixed(2) || 'N/A'}U
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {expenditure.quantity || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {expenditure.amount.toFixed(2)}U
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {expenditure.date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleEditExpenditure(expenditure)}
-                        disabled={loading}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteExpenditure(expenditure.id)}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ExpendituresTable
+            rows={expenditures.filter(exp => teamFilter === 'all' || exp.team_id === teamFilter)}
+            teams={teams}
+            members={members}
+            loading={loading}
+            onEdit={handleEditExpenditure}
+            onDelete={handleDeleteExpenditure}
+          />
         </div>
 
         {/* Edit Expenditure Modal */}
@@ -819,12 +733,12 @@ export default function AdminPanel() {
                     type="number"
                     step="100"
                     min="0"
-                    value={editingTeam.budget}
-                    onChange={(e) => setEditingTeam({...editingTeam, budget: parseInt(e.target.value)})}
+                    value={editingTeam.budget ?? 0}
+                    onChange={(e) => setEditingTeam({...editingTeam, budget: e.target.value === '' ? null : parseInt(e.target.value)})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-lg font-semibold"
-                    required
                     disabled={loading}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Leave empty for Unlimited</p>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
