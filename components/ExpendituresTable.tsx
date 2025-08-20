@@ -1,6 +1,6 @@
 'use client'
 
-import React, { memo, useMemo } from 'react'
+import React, { memo, useMemo, useState, useEffect, useCallback } from 'react'
 import { type Expenditure, type Team, type Member } from '@/lib/supabase'
 
 interface ExpendituresTableProps {
@@ -13,6 +13,15 @@ interface ExpendituresTableProps {
 }
 
 const ExpendituresTableComponent: React.FC<ExpendituresTableProps> = ({ rows, teams, members, loading, onEdit, onDelete }) => {
+  // Limit initial render to avoid large DOM mounts
+  const [rowsToShow, setRowsToShow] = useState(100)
+  useEffect(() => {
+    setRowsToShow(100)
+  }, [rows])
+
+  const handleShowMore = useCallback(() => {
+    setRowsToShow(prev => Math.min(prev + 200, rows.length))
+  }, [rows.length])
   const teamNameById = useMemo(() => {
     const map = new Map<string, string>()
     for (const t of teams) map.set(t.id, t.name)
@@ -53,7 +62,7 @@ const ExpendituresTableComponent: React.FC<ExpendituresTableProps> = ({ rows, te
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {rows.map((expenditure) => (
+            {rows.slice(0, rowsToShow).map((expenditure) => (
               <tr key={expenditure.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getTeamName(expenditure.team_id, expenditure)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getMemberName(expenditure.member_id, expenditure)}</td>
@@ -71,6 +80,17 @@ const ExpendituresTableComponent: React.FC<ExpendituresTableProps> = ({ rows, te
           </tbody>
         </table>
       </div>
+      {rows.length > rowsToShow && (
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={handleShowMore}
+            disabled={loading}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+          >
+            Show more ({rows.length - rowsToShow} remaining)
+          </button>
+        </div>
+      )}
     </div>
   )
 }

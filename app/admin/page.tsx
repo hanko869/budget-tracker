@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Lock, Plus, Edit, Trash2, Save, X, Calculator, Settings, BarChart3, Users } from 'lucide-react'
 import { dbOperations, isDatabaseConnected, type Team, type Expenditure, type Member } from '@/lib/supabase'
 import { getBeiJingDate } from '@/lib/timezone'
@@ -594,7 +594,7 @@ export default function AdminPanel() {
             </select>
           </div>
           <ExpendituresTable
-            rows={expenditures.filter(exp => teamFilter === 'all' || exp.team_id === teamFilter)}
+            rows={useMemo(() => expenditures.filter(exp => teamFilter === 'all' || exp.team_id === teamFilter), [expenditures, teamFilter])}
             teams={teams}
             members={members}
             loading={loading}
