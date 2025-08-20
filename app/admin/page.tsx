@@ -81,6 +81,12 @@ export default function AdminPanel() {
     setSelectedMonth(month)
   }
 
+  // Always compute filtered rows the same way each render to keep hook order stable
+  const filteredExpenditures = useMemo(
+    () => expenditures.filter(exp => teamFilter === 'all' || exp.team_id === teamFilter),
+    [expenditures, teamFilter]
+  )
+
   // Get selected month name
   const selectedMonthName = new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { 
     month: 'long', 
@@ -619,7 +625,7 @@ export default function AdminPanel() {
             </select>
           </div>
           <ExpendituresTable
-            rows={useMemo(() => expenditures.filter(exp => teamFilter === 'all' || exp.team_id === teamFilter), [expenditures, teamFilter])}
+            rows={filteredExpenditures}
             teams={teams}
             members={members}
             loading={loading}
